@@ -20,9 +20,7 @@ import wandb
 from wandb.util import mkdir_exists_ok
 from six.moves import urllib
 
-# TODO: consolidate dynamic imports
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     from wandb.sdk.lib.module import unset_globals
     from wandb.sdk.lib.git import GitRepo
 else:
@@ -74,13 +72,13 @@ def start_mock_server():
     server.base_url = "http://localhost:%i" % server._port
 
     def get_ctx():
-        return requests.get(server.base_url + "/ctx").json()
+        return requests.get(f'{server.base_url}/ctx').json()
 
     def set_ctx(payload):
-        return requests.put(server.base_url + "/ctx", json=payload).json()
+        return requests.put(f'{server.base_url}/ctx', json=payload).json()
 
     def reset_ctx():
-        return requests.delete(server.base_url + "/ctx").json()
+        return requests.delete(f'{server.base_url}/ctx').json()
 
     server.get_ctx = get_ctx
     server.set_ctx = set_ctx

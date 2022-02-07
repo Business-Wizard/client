@@ -50,10 +50,9 @@ logger = logging.getLogger(__name__)
 _not_importable = set()
 
 
-IS_GIT = os.path.exists(os.path.join(os.path.dirname(__file__), "..", ".git"))
-
-# these match the environments for gorilla
-if IS_GIT:
+if IS_GIT := os.path.exists(
+    os.path.join(os.path.dirname(__file__), "..", ".git")
+):
     SENTRY_ENV = "development"
 else:
     SENTRY_ENV = "production"
@@ -242,7 +241,7 @@ def get_full_typename(o):
     """We determine types based on type names so we don't have to import
     (and therefore depend on) PyTorch, TensorFlow, etc.
     """
-    instance_name = o.__class__.__module__ + "." + o.__class__.__name__
+    instance_name = f'{o.__class__.__module__}.{o.__class__.__name__}'
     if instance_name in ["builtins.module", "__builtin__.module"]:
         return o.__name__
     else:
@@ -256,7 +255,7 @@ def get_h5_typename(o):
     elif is_pytorch_tensor_typename(typename):
         return "torch.Tensor"
     else:
-        return o.__class__.__module__.split(".")[0] + "." + o.__class__.__name__
+        return f'{o.__class__.__module__.split(".")[0]}.{o.__class__.__name__}'
 
 
 def is_tf_tensor(obj):
@@ -341,10 +340,7 @@ def ensure_matplotlib_figure(obj):
         if len(position) != 2:
             raise ValueError("position should be 2-tuple")
         position_type, amount = position
-        if position_type == "outward" and amount == 0:
-            return True
-        else:
-            return False
+        return position_type == "outward" and amount == 0
 
     Spine.is_frame_like = is_frame_like
     if obj == matplotlib.pyplot:
@@ -505,12 +501,11 @@ def generate_id():
 
 def parse_tfjob_config():
     """Attempts to parse TFJob config, returning False if it can't find it"""
-    if os.getenv("TF_CONFIG"):
-        try:
-            return json.loads(os.environ["TF_CONFIG"])
-        except ValueError:
-            return False
-    else:
+    if not os.getenv("TF_CONFIG"):
+        return False
+    try:
+        return json.loads(os.environ["TF_CONFIG"])
+    except ValueError:
         return False
 
 
@@ -586,9 +581,7 @@ def json_dumps_safer_history(obj, **kwargs):
 
 def make_json_if_not_number(v):
     """If v is not a basic type convert it to json."""
-    if isinstance(v, (float, int)):
-        return v
-    return json_dumps_safer(v)
+    return v if isinstance(v, (float, int)) else json_dumps_safer(v)
 
 
 def make_safe_for_json(obj):
@@ -664,15 +657,10 @@ def request_with_retry(func, *args, **kwargs):
             requests.exceptions.HTTPError,
             requests.exceptions.Timeout,
         ) as e:
-            if isinstance(e, requests.exceptions.HTTPError):
-                # Non-retriable HTTP errors.
-                #
-                # We retry 500s just to be cautious, and because the back end
-                # returns them when there are infrastructure issues. If retrying
-                # some request winds up being problematic, we'll change the
-                # back end to indicate that it shouldn't be retried.
-                if e.response.status_code in {400, 403, 404, 409}:
-                    return e
+            if isinstance(
+                e, requests.exceptions.HTTPError
+            ) and e.response.status_code in {400, 403, 404, 409}:
+                return e
 
             if retry_count == max_retries:
                 return e
@@ -692,8 +680,7 @@ def request_with_retry(func, *args, **kwargs):
                 )
             time.sleep(delay)
             sleep *= 2
-            if sleep > MAX_SLEEP_SECONDS:
-                sleep = MAX_SLEEP_SECONDS
+            sleep = min(sleep, MAX_SLEEP_SECONDS)
         except requests.exceptions.RequestException as e:
             logger.error(response.json()["error"])  # XXX clean this up
             logger.exception(
@@ -736,10 +723,7 @@ def downsample(values, target_length):
     if len(values) < target_length:
         return values
     ratio = float(len(values) - 1) / (target_length - 1)
-    result = []
-    for i in range(target_length):
-        result.append(values[int(i * ratio)])
-    return result
+    return [values[int(i * ratio)] for i in range(target_length)]
 
 
 import numbers
@@ -819,12 +803,16 @@ def image_from_docker_args(args):
                 possible_images.append(arg)
             elif last_arg in bool_args and last_flag == i - 1:
                 possible_images.append(arg)
-    most_likely = None
-    for img in possible_images:
-        if ":" in img or "@" in img or "/" in img:
-            most_likely = img
-            break
-    if most_likely == None and len(possible_images) > 0:
+    most_likely = next(
+        (
+            img
+            for img in possible_images
+            if ":" in img or "@" in img or "/" in img
+        ),
+        None,
+    )
+
+    if most_likely is None and possible_images:
         most_likely = possible_images[0]
     return most_likely
 
@@ -904,7 +892,7 @@ def read_many_from_queue(q, max_items, queue_timeout):
     except queue.Empty:
         return []
     items = [item]
-    for i in range(max_items):
+    for _ in range(max_items):
         try:
             item = q.get_nowait()
         except queue.Empty:
@@ -918,11 +906,7 @@ def stopwatch_now():
 
     When possible it is a monotonic clock to prevent backwards time issues.
     """
-    if six.PY2:
-        now = time.time()
-    else:
-        now = time.monotonic()
-    return now
+    return time.time() if six.PY2 else time.monotonic()
 
 
 def class_colors(class_count):
@@ -947,12 +931,7 @@ def guess_data_type(shape, risky=False):
     if risky and len(shape) == 3:
         return "image"
     if len(shape) == 4:
-        if shape[-1] in (1, 3, 4):
-            # (samples, height, width, Y \ RGB \ RGBA)
-            return "image"
-        else:
-            # (samples, height, width, logits)
-            return "segmentation_mask"
+        return "image" if shape[-1] in (1, 3, 4) else "segmentation_mask"
     return None
 
 
@@ -1001,7 +980,7 @@ def auto_project_name(program):
     project = repo_name
     sub_path = os.path.relpath(prog_dir, root_dir)
     if sub_path != ".":
-        project += "-" + sub_path
+        project += f'-{sub_path}'
     return project.replace(os.sep, "_")
 
 
@@ -1086,8 +1065,7 @@ class ImportMetaHook:
         mod = importlib.import_module(fullname)
         self.install()
         self.modules[fullname] = mod
-        on_imports = self.on_import.get(fullname)
-        if on_imports:
+        if on_imports := self.on_import.get(fullname):
             for f in on_imports:
                 f()
         return mod

@@ -46,8 +46,10 @@ def confusion_matrix(preds=None, y_true=None, class_names=None):
 
     data = []
     for i in range(n_classes):
-        for j in range(n_classes):
-            data.append([class_names[i], class_names[j], counts[i, j]])
+        data.extend(
+            [class_names[i], class_names[j], counts[i, j]]
+            for j in range(n_classes)
+        )
 
     fields = {"Actual": "Actual", "Predicted": "Predicted", "nPredicted": "Count"}
 

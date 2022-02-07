@@ -234,46 +234,44 @@ class Artifact(object):
         - `obj`:wandb.Media - the object to save
         - `name`:str - the path to save
         """
-        if isinstance(obj, Media):
+        if not isinstance(obj, Media):
 
-            # If the object is coming from another artifact, save it as a reference
-            if hasattr(obj, "_source") and obj._source is not None:
-                suffix = "." + obj.get_json_suffix() + ".json"
-                ref_path = obj._source["artifact"].get_path(
-                    obj._source["name"] + suffix
-                )
-                path = name + suffix
-                return self.add_reference(ref_path, path)[0]
-
-            # Otherwise, save the object directly via json
-            elif type(obj) in JSONABLE_MEDIA_CLASSES:
-                obj_id = id(obj)
-                if obj_id in self._added_objs:
-                    return self._added_objs[obj_id]
-                val = obj.to_json(self)
-                if "_type" not in val:
-                    val["_type"] = obj.get_json_suffix()
-                suffix = val["_type"] + ".json"
-                if not name.endswith(suffix):
-                    name = name + "." + suffix
-                entry = self._manifest.get_entry_by_path(name)
-                if entry is not None:
-                    return entry
-                with self.new_file(name) as f:
-                    import json
-
-                    # TODO: Do we need to open with utf-8 codec?
-                    f.write(json.dumps(obj.to_json(self), sort_keys=True))
-                # Note, we add the file from our temp directory.
-                # It will be added again later on finalize, but succeed since
-                # the checksum should match
-                entry = self.add_file(os.path.join(self._artifact_dir.name, name), name)
-                self._added_objs[obj_id] = entry
-                return entry
-            else:
-                ValueError("Can't add obj of type {} to artifact".format(type(obj)))
-        else:
             raise ValueError("Can't add obj to artifact")
+            # If the object is coming from another artifact, save it as a reference
+        if hasattr(obj, "_source") and obj._source is not None:
+            suffix = "." + obj.get_json_suffix() + ".json"
+            ref_path = obj._source["artifact"].get_path(
+                obj._source["name"] + suffix
+            )
+            path = name + suffix
+            return self.add_reference(ref_path, path)[0]
+
+        elif type(obj) in JSONABLE_MEDIA_CLASSES:
+            obj_id = id(obj)
+            if obj_id in self._added_objs:
+                return self._added_objs[obj_id]
+            val = obj.to_json(self)
+            if "_type" not in val:
+                val["_type"] = obj.get_json_suffix()
+            suffix = f'{val["_type"]}.json'
+            if not name.endswith(suffix):
+                name = f'{name}.{suffix}'
+            entry = self._manifest.get_entry_by_path(name)
+            if entry is not None:
+                return entry
+            with self.new_file(name) as f:
+                import json
+
+                # TODO: Do we need to open with utf-8 codec?
+                f.write(json.dumps(obj.to_json(self), sort_keys=True))
+            # Note, we add the file from our temp directory.
+            # It will be added again later on finalize, but succeed since
+            # the checksum should match
+            entry = self.add_file(os.path.join(self._artifact_dir.name, name), name)
+            self._added_objs[obj_id] = entry
+            return entry
+        else:
+            ValueError("Can't add obj of type {} to artifact".format(type(obj)))
 
     def get_added_local_path_name(self, local_path):
         """If local_path was already added to artifact, return its internal name."""
@@ -829,29 +827,28 @@ class S3Handler(StorageHandler):
             obj = self._s3.Object(bucket, key)
             etag = self._etag_from_obj(obj)
             if etag != manifest_entry.digest:
-                if self.versioning_enabled(bucket):
-                    # Fallback to listing versions
-                    obj = None
-                    object_versions = self._s3.Bucket(bucket).object_versions.filter(
-                        Prefix=key
-                    )
-                    for object_version in object_versions:
-                        if (
-                            manifest_entry.extra.get("etag")
-                            == object_version.e_tag[1:-1]
-                        ):
-                            obj = object_version.Object()
-                            extra_args["VersionId"] = object_version.version_id
-                            break
-                    if obj is None:
-                        raise ValueError(
-                            "Couldn't find object version for %s/%s matching etag %s"
-                            % (self._bucket, key, manifest_entry.extra.get("etag"))
-                        )
-                else:
+                if not self.versioning_enabled(bucket):
                     raise ValueError(
                         "Digest mismatch for object %s: expected %s but found %s"
                         % (manifest_entry.ref, manifest_entry.digest, etag)
+                    )
+                # Fallback to listing versions
+                obj = None
+                object_versions = self._s3.Bucket(bucket).object_versions.filter(
+                    Prefix=key
+                )
+                for object_version in object_versions:
+                    if (
+                        manifest_entry.extra.get("etag")
+                        == object_version.e_tag[1:-1]
+                    ):
+                        obj = object_version.Object()
+                        extra_args["VersionId"] = object_version.version_id
+                        break
+                if obj is None:
+                    raise ValueError(
+                        "Couldn't find object version for %s/%s matching etag %s"
+                        % (self._bucket, key, manifest_entry.extra.get("etag"))
                     )
         else:
             obj = self._s3.ObjectVersion(bucket, key, version).Object()
@@ -876,25 +873,24 @@ class S3Handler(StorageHandler):
         try:
             objs[0].load()
         except self._botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                multi = True
-                start_time = time.time()
-                termlog(
-                    'Generating checksum for up to %i objects with prefix "%s"... '
-                    % (max_objects, key),
-                    newline=False,
-                )
-                objs = (
-                    self._s3.Bucket(bucket)
-                    .objects.filter(Prefix=key)
-                    .limit(max_objects)
-                )
-            else:
+            if e.response["Error"]["Code"] != "404":
                 raise CommError(
                     "Unable to connect to S3 (%s): %s"
                     % (e.response["Error"]["Code"], e.response["Error"]["Message"])
                 )
 
+            multi = True
+            start_time = time.time()
+            termlog(
+                'Generating checksum for up to %i objects with prefix "%s"... '
+                % (max_objects, key),
+                newline=False,
+            )
+            objs = (
+                self._s3.Bucket(bucket)
+                .objects.filter(Prefix=key)
+                .limit(max_objects)
+            )
         # Weird iterator scoping makes us assign this to a local function
         size = self._size_from_obj
         entries = [
@@ -912,12 +908,7 @@ class S3Handler(StorageHandler):
         return entries
 
     def _size_from_obj(self, obj):
-        # ObjectSummary has size, Object has content_length
-        if hasattr(obj, "size"):
-            size = obj.size
-        else:
-            size = obj.content_length
-        return size
+        return obj.size if hasattr(obj, "size") else obj.content_length
 
     def _entry_from_obj(self, obj, path, name=None, prefix="", multi=False):
         ref = path
@@ -1156,11 +1147,11 @@ class HTTPHandler(StorageHandler):
 
     def _entry_from_headers(self, headers):
         response_headers = {k.lower(): v for k, v in headers.items()}
-        size = response_headers.get("content-length", None)
+        size = response_headers.get("content-length")
         if size:
             size = int(size)
 
-        digest = response_headers.get("etag", None)
+        digest = response_headers.get("etag")
         extra = {}
         if digest:
             extra["etag"] = digest

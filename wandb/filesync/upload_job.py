@@ -71,10 +71,7 @@ class UploadJob(threading.Thread):
                 self._stats.update_failed_file(self.save_path)
                 logger.exception("Failed to upload file: %s", self.save_path)
                 wandb.util.sentry_exc(e)
-                message = str(e)
-                # TODO: this is usually XML, but could be JSON
-                if hasattr(e, "response"):
-                    message = e.response.content
+                message = e.response.content if hasattr(e, "response") else str(e)
                 wandb.termerror(
                     'Error uploading "{}": {}, {}'.format(
                         self.save_path, type(e).__name__, message

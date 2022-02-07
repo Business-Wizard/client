@@ -160,8 +160,7 @@ class _WandbSetup__WandbSetup(object):  # noqa: N801
             return None
         if self._server is None:
             self._load_viewer()
-        entity = self._server._viewer.get("entity")
-        return entity
+        return self._server._viewer.get("entity")
 
     def _load_viewer(self, settings=None):
         if self._settings and self._settings._offline:
@@ -179,8 +178,7 @@ class _WandbSetup__WandbSetup(object):  # noqa: N801
         if "code_saving_enabled" in flags:
             user_settings["save_code"] = flags["code_saving_enabled"]
 
-        email = self._server._viewer.get("email", None)
-        if email:
+        if email := self._server._viewer.get("email", None):
             user_settings["email"] = email
 
         return user_settings
@@ -246,10 +244,8 @@ def _setup(settings=None, _reset=None):
     if _reset:
         _WandbSetup._instance = None
         return
-    wl = _WandbSetup(settings=settings)
-    return wl
+    return _WandbSetup(settings=settings)
 
 
 def setup(settings=None):
-    ret = _setup(settings=settings)
-    return ret
+    return _setup(settings=settings)

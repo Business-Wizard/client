@@ -26,8 +26,7 @@ class UniformSampleAccumulator(object):
         self._log2 = [0]
 
         # pre-allocate buckets
-        for _ in range(self._buckets):
-            self._bucket.append([0] * self._max)
+        self._bucket.extend([0] * self._max for _ in range(self._buckets))
         # compute integer log2
         self._log2 += [int(math.log(i, 2)) for i in range(1, 2 ** self._buckets + 1)]
 

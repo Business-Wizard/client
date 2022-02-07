@@ -12,18 +12,18 @@ def _manifest_json_from_proto(manifest):
         contents = {
             content.path: {
                 "digest": content.digest,
-                "birthArtifactID": content.birth_artifact_id
-                if content.birth_artifact_id
-                else None,
-                "ref": content.ref if content.ref else None,
+                "birthArtifactID": content.birth_artifact_id or None,
+                "ref": content.ref or None,
                 "size": content.size if content.size is not None else None,
-                "local_path": content.local_path if content.local_path else None,
+                "local_path": content.local_path or None,
                 "extra": {
-                    extra.key: json.loads(extra.value_json) for extra in content.extra
+                    extra.key: json.loads(extra.value_json)
+                    for extra in content.extra
                 },
             }
             for content in manifest.contents
         }
+
     else:
         raise Exception(
             "unknown artifact manifest version: {}".format(manifest.version)

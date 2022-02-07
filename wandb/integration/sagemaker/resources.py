@@ -7,9 +7,8 @@ from . import files as sm_files
 
 def parse_sm_resources():
     run_dict = dict()
-    env_dict = dict()
-    run_id = os.getenv("TRAINING_JOB_NAME")
-    if run_id:
+    env_dict = {}
+    if run_id := os.getenv("TRAINING_JOB_NAME"):
         run_dict["run_id"] = "-".join(
             [run_id, os.getenv("CURRENT_HOST", socket.gethostname())]
         )

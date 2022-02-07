@@ -64,9 +64,7 @@ class AgentProcess(object):
             function()
         print("wandb: Agent Finished Run:", run_id, "\n")
 
-        # complete the run
-        run = wandb.run
-        if run:
+        if run := wandb.run:
             wandb.join()
 
         # signal that the process is finished
@@ -80,33 +78,31 @@ class AgentProcess(object):
             self._proc.join()
             return True
         try:
-            finished = self._finished_q.get(False, 0)
-            if finished:
+            if finished := self._finished_q.get(False, 0):
                 return True
         except queue.Empty:
             pass
         return
 
     def wait(self):
-        if self._popen:
-            # if on windows, wait() will block and we wont be able to interrupt
-            if platform.system() == "Windows":
-                try:
-                    while True:
-                        p = self._popen.poll()
-                        if p is not None:
-                            return p
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    raise
-            return self._popen.wait()
-        return self._proc.join()
+        if not self._popen:
+            return self._proc.join()
+        # if on windows, wait() will block and we wont be able to interrupt
+        if platform.system() == "Windows":
+            try:
+                while True:
+                    p = self._popen.poll()
+                    if p is not None:
+                        return p
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                raise
+        return self._popen.wait()
 
     def kill(self):
         if self._popen:
             return self._popen.kill()
-        pid = self._proc.pid
-        if pid:
+        if pid := self._proc.pid:
             ret = os.kill(pid, signal.SIGKILL)
             self._proc_killed = True
             return ret
@@ -177,13 +173,9 @@ class Agent(object):
 
     def run(self):  # noqa: C901
 
-        # TODO: catch exceptions, handle errors, show validation warnings, and make more generic
-        sweep_obj = self._api.sweep(self._sweep_id, "{}")
-        if sweep_obj:
-            sweep_yaml = sweep_obj.get("config")
-            if sweep_yaml:
-                sweep_config = yaml.safe_load(sweep_yaml)
-                if sweep_config:
+        if sweep_obj := self._api.sweep(self._sweep_id, "{}"):
+            if sweep_yaml := sweep_obj.get("config"):
+                if sweep_config := yaml.safe_load(sweep_yaml):
                     sweep_command = sweep_config.get("command")
                     if sweep_command and isinstance(sweep_command, list):
                         self._sweep_command = sweep_command
@@ -252,9 +244,9 @@ class Agent(object):
                 commands = self._api.agent_heartbeat(agent_id, {}, run_status)
 
                 # TODO: send _server_responses
-                self._server_responses = []
-                for command in commands:
-                    self._server_responses.append(self._process_command(command))
+                self._server_responses = [
+                    self._process_command(command) for command in commands
+                ]
 
         except KeyboardInterrupt:
             try:
@@ -348,11 +340,10 @@ class Agent(object):
         sweep_id = os.environ.get(wandb.env.SWEEP_ID)
         # TODO(jhr): move into settings
         config_file = os.path.join(
-            "wandb", "sweep-" + sweep_id, "config-" + run_id + ".yaml"
+            "wandb", "sweep-" + sweep_id, f'config-{run_id}.yaml'
         )
-        json_file = os.path.join(
-            "wandb", "sweep-" + sweep_id, "config-" + run_id + ".json"
-        )
+
+        json_file = os.path.join("wandb", f'sweep-{sweep_id}', f'config-{run_id}.json')
 
         os.environ[wandb.env.RUN_ID] = run_id
         os.environ[wandb.env.CONFIG_PATHS] = os.path.join(
@@ -368,7 +359,7 @@ class Agent(object):
             (param, config["value"]) for param, config in command["args"].items()
         ]
         flags_no_hyphens = ["{}={}".format(param, value) for param, value in flags_list]
-        flags = ["--" + flag for flag in flags_no_hyphens]
+        flags = [f'--{flag}' for flag in flags_no_hyphens]
         flags_dict = dict(flags_list)
         flags_json = json.dumps(flags_dict)
 
@@ -477,8 +468,7 @@ def run_agent(
     sweep_id, function=None, in_jupyter=None, entity=None, project=None, count=None
 ):
     parts = dict(entity=entity, project=project, name=sweep_id)
-    err = util.parse_sweep_id(parts)
-    if err:
+    if err := util.parse_sweep_id(parts):
         wandb.termerror(err)
         return
     entity = parts.get("entity") or entity

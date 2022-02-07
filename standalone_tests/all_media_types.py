@@ -129,7 +129,7 @@ def main():
             'graph-summary': graph,
         })
 
-        for i in range(10):
+        for _ in range(10):
             wandb.run.history.add({
                 'string': 'string',
                 'histogram-small-literal': histogram_small_literal,

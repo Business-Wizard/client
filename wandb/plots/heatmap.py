@@ -63,10 +63,7 @@ def heatmap(x_labels, y_labels, matrix_values, show_text=False):
                             % wandb.Table.MAX_ROWS
                         )
                         break
-            if show_text:
-                heatmap_key = "wandb/heatmap/v1"
-            else:
-                heatmap_key = "wandb/heatmap_no_text/v1"
+            heatmap_key = "wandb/heatmap/v1" if show_text else "wandb/heatmap_no_text/v1"
             return wandb.visualize(
                 heatmap_key,
                 wandb.Table(

@@ -122,8 +122,7 @@ class Agent(object):
         logger.debug("Agent._setup()")
         self._init()
         parts = dict(entity=self._entity, project=self._project, name=self._sweep_path)
-        err = util.parse_sweep_id(parts)
-        if err:
+        if err := util.parse_sweep_id(parts):
             wandb.termerror(err)
             return
         entity = parts.get("entity") or self._entity
@@ -142,8 +141,7 @@ class Agent(object):
     def _stop_run(self, run_id):
         logger.debug("Stopping run {}.".format(run_id))
         self._run_status[run_id] = RunStatus.STOPPED
-        thread = self._run_threads.get(run_id)
-        if thread:
+        if thread := self._run_threads.get(run_id):
             _terminate_thread(thread)
 
     def _stop_all_runs(self):
@@ -247,8 +245,9 @@ class Agent(object):
                             self._exit_flag = True
                             return
                         if (
-                            self._max_initial_failures < len(self._exceptions)
-                            and len(self._exceptions) >= count
+                            self._max_initial_failures
+                            < len(self._exceptions)
+                            >= count
                         ):
                             msg = "Detected {} failed runs in a row at start, killing sweep.".format(
                                 self._max_initial_failures
@@ -270,12 +269,11 @@ class Agent(object):
                     self._exit()
                     return
                 except Exception as e:
-                    if self._exit_flag:
-                        logger.debug("Exiting main loop due to exit flag.")
-                        wandb.termlog("Sweep Agent: Killed.")
-                        return
-                    else:
+                    if not self._exit_flag:
                         raise e
+                    logger.debug("Exiting main loop due to exit flag.")
+                    wandb.termlog("Sweep Agent: Killed.")
+                    return
         finally:
             _INSTANCES -= 1
 
@@ -284,8 +282,9 @@ class Agent(object):
             run_id = job.run_id
 
             config_file = os.path.join(
-                "wandb", "sweep-" + self._sweep_id, "config-" + run_id + ".yaml"
+                "wandb", f'sweep-{self._sweep_id}', f'config-{run_id}.yaml'
             )
+
             os.environ[wandb.env.RUN_ID] = run_id
             os.environ[wandb.env.CONFIG_PATHS] = os.path.join(
                 os.environ[wandb.env.DIR], config_file

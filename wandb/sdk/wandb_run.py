@@ -118,12 +118,12 @@ class RunStatusChecker(object):
                 self._interface.communicate_status(check_stop_req=True)
                 or False
             )
-            if status_response.run_should_stop:
-                # TODO(frz): This check is required
-                # until WB-3606 is resolved on server side.
-                if not wandb.agents.pyagent.is_running():
-                    thread.interrupt_main()
-                    return
+            if (
+                status_response.run_should_stop
+                and not wandb.agents.pyagent.is_running()
+            ):
+                thread.interrupt_main()
+                return
             join_requested = self._join_event.wait(self._polling_interval)
 
     def stop(self):
@@ -169,7 +169,7 @@ class Run(object):
         self._settings = settings
         self._wl = None
         self._reporter = None
-        self._data = dict()
+        self._data = {}
 
         self._entity = None
         self._project = None
@@ -231,16 +231,16 @@ class Run(object):
         wandb_key = "_wandb"
         config.setdefault(wandb_key, dict())
 
-        wandb_data = dict()
-        wandb_data["cli_version"] = wandb.__version__
-        wandb_data["python_version"] = platform.python_version()
+        wandb_data = {
+            'cli_version': wandb.__version__,
+            'python_version': platform.python_version(),
+        }
+
         wandb_data["is_jupyter_run"] = settings._jupyter or False
         wandb_data["is_kaggle_kernel"] = settings._kaggle or False
-        hf_version = huggingface_version()
-        if hf_version:
+        if hf_version := huggingface_version():
             wandb_data["huggingface_version"] = hf_version
-        framework = self._telemetry_get_framework()
-        if framework:
+        if framework := self._telemetry_get_framework():
             wandb_data["framework"] = framework
         config[wandb_key].update(wandb_data)
 
@@ -264,8 +264,7 @@ class Run(object):
     def _telemetry_get_framework(self):
         """Get telemetry data for internal config structure."""
         # detect framework by checking what is loaded
-        loaded = {}
-        loaded["lightgbm"] = sys.modules.get("lightgbm")
+        loaded = {'lightgbm': sys.modules.get("lightgbm")}
         loaded["catboost"] = sys.modules.get("catboost")
         loaded["xgboost"] = sys.modules.get("xgboost")
         loaded["fastai"] = sys.modules.get("fastai")
@@ -284,8 +283,7 @@ class Run(object):
             "tensorflow",
             "sklearn",
         )
-        framework = next((f for f in priority if loaded.get(f)), None)
-        return framework
+        return next((f for f in priority if loaded.get(f)), None)
 
     def _init_from_settings(self, settings):
         if settings.entity is not None:
@@ -404,17 +402,15 @@ class Run(object):
     @property
     def sweep_id(self):
         """(str, optional): the sweep id associated with the run or None"""
-        if not self._run_obj:
-            return None
-        return self._run_obj.sweep_id or None
+        return None if not self._run_obj else self._run_obj.sweep_id or None
 
     @property
     def path(self):
         """str: the path to the run [entity]/[project]/[run_id]"""
-        parts = []
-        for e in [self._entity, self._project, self._run_id]:
-            if e is not None:
-                parts.append(e)
+        parts = [
+            e for e in [self._entity, self._project, self._run_id] if e is not None
+        ]
+
         return "/".join(parts)
 
     @property
@@ -437,9 +433,7 @@ class Run(object):
     def resumed(self):
         """bool: whether or not the run was resumed"""
 
-        if self._run_obj:
-            return self._run_obj.resumed
-        return False
+        return self._run_obj.resumed if self._run_obj else False
 
     @property
     def step(self):
@@ -533,9 +527,10 @@ class Run(object):
     def _repr_mimebundle_(self, include=None, exclude=None):
         url = self._get_run_url()
         style = "border:none;width:100%;height:400px"
-        note = ""
         if include or exclude:
             note = "(DEBUG: include={}, exclude={})".format(include, exclude)
+        else:
+            note = ""
         s = '<h1>Run({})</h1><p>{}</p><iframe src="{}" style="{}"></iframe>'.format(
             self._run_id, note, url, style
         )
@@ -564,7 +559,7 @@ class Run(object):
         for k in row:
             if isinstance(row[k], Visualize):
                 if "viz" not in self._config["_wandb"]:
-                    self._config["_wandb"]["viz"] = dict()
+                    self._config["_wandb"]["viz"] = {}
                 self._config["_wandb"]["viz"][k] = {
                     "id": row[k].viz_id,
                     "historyFieldSettings": {"key": k, "x-axis": "_step"},
@@ -581,7 +576,7 @@ class Run(object):
             #     a non-custom chart to this key?
             row.pop(k)
             # add the table under a different key
-            table_key = k + "_table"
+            table_key = f'{k}_table'
             row[table_key] = custom_chart.table
             # add the panel
             panel_config = custom_chart_panel_config(custom_chart, k, table_key)
@@ -628,9 +623,11 @@ class Run(object):
             self.config._update(c_dict, allow_val_change=True)
         # Update the summary, this will trigger an un-needed graphql request :(
         if run_obj.summary:
-            summary_dict = {}
-            for orig in run_obj.summary.update:
-                summary_dict[orig.key] = json.loads(orig.value_json)
+            summary_dict = {
+                orig.key: json.loads(orig.value_json)
+                for orig in run_obj.summary.update
+            }
+
             self.summary.update(summary_dict)
         self.history._update_step()
         # TODO: It feels weird to call this twice..
@@ -854,7 +851,7 @@ class Run(object):
             else:
                 base_path = "."
         wandb_glob_str = os.path.relpath(glob_str, base_path)
-        if ".." + os.sep in wandb_glob_str:
+        if f'..{os.sep}' in wandb_glob_str:
             raise ValueError("globs can't walk above base_path")
         if glob_str.startswith("gs://") or glob_str.startswith("s3://"):
             wandb.termlog(
@@ -862,9 +859,7 @@ class Run(object):
             )
             return []
         files = glob.glob(os.path.join(self.dir, wandb_glob_str))
-        warn = False
-        if len(files) == 0 and "*" in wandb_glob_str:
-            warn = True
+        warn = len(files) == 0 and "*" in wandb_glob_str
         for path in glob.glob(glob_str):
             file_name = os.path.relpath(path, base_path)
             abs_path = os.path.abspath(path)
@@ -931,10 +926,9 @@ class Run(object):
             string_fields: a dict that provides values for any string constants
                     the custom visualization needs
         """
-        visualization = create_custom_chart(
+        return create_custom_chart(
             vega_spec_name, data_table, fields, string_fields or {}
         )
-        return visualization
 
     def _set_upgraded_version_message(self, msg):
         self._upgraded_version_message = msg
@@ -947,7 +941,7 @@ class Run(object):
 
     def _add_panel(self, visualize_key: str, panel_type: str, panel_config: dict):
         if "visualize" not in self._config["_wandb"]:
-            self._config["_wandb"]["visualize"] = dict()
+            self._config["_wandb"]["visualize"] = {}
         self._config["_wandb"]["visualize"][visualize_key] = {
             "panel_type": panel_type,
             "panel_config": panel_config,
@@ -959,17 +953,15 @@ class Run(object):
         s = self._settings
         r = self._run_obj
         app_url = wandb.util.app_url(s.base_url)
-        url = "{}/{}/{}".format(app_url, url_quote(r.entity), url_quote(r.project))
-        return url
+        return "{}/{}/{}".format(app_url, url_quote(r.entity), url_quote(r.project))
 
     def _get_run_url(self):
         s = self._settings
         r = self._run_obj
         app_url = wandb.util.app_url(s.base_url)
-        url = "{}/{}/{}/runs/{}".format(
+        return "{}/{}/{}/runs/{}".format(
             app_url, url_quote(r.entity), url_quote(r.project), url_quote(r.run_id)
         )
-        return url
 
     def _get_sweep_url(self):
         """Generate a url for a sweep.
@@ -1002,10 +994,7 @@ class Run(object):
         run_url = self._get_run_url()
         sweep_url = self._get_sweep_url()
         version_str = "Tracking run with wandb version {}".format(wandb.__version__)
-        if self.resumed:
-            run_state_str = "Resuming run"
-        else:
-            run_state_str = "Syncing run"
+        run_state_str = "Resuming run" if self.resumed else "Syncing run"
         run_name = self._get_run_name()
         app_url = wandb.util.app_url(self._settings.base_url)
 
@@ -1184,10 +1173,8 @@ class Run(object):
 
         exit_code = exit_code or self._hooks.exit_code if self._hooks else 0
         logger.info("got exitcode: %d", exit_code)
-        if exit_code == 0:
-            # Cleanup our resume file on a clean exit
-            if os.path.exists(self._settings.resume_fname):
-                os.remove(self._settings.resume_fname)
+        if exit_code == 0 and os.path.exists(self._settings.resume_fname):
+            os.remove(self._settings.resume_fname)
 
         self._exit_code = exit_code
         try:
@@ -1300,8 +1287,7 @@ class Run(object):
             logger.info("got exit ret: %s", ret)
 
             done = ret.response.poll_exit_response.done
-            pusher_stats = ret.response.poll_exit_response.pusher_stats
-            if pusher_stats:
+            if pusher_stats := ret.response.poll_exit_response.pusher_stats:
                 self._on_finish_progress(pusher_stats, done)
             if done:
                 break
@@ -1357,17 +1343,14 @@ class Run(object):
     def _on_final(self):
         # check for warnings and errors, show log file locations
         if self._reporter:
-            # TODO: handle warnings and errors nicely in jupyter
-            warning_lines = self._reporter.warning_lines
-            if warning_lines:
+            if warning_lines := self._reporter.warning_lines:
                 wandb.termlog("Warnings:")
                 for line in warning_lines:
                     wandb.termlog(line)
                 if len(warning_lines) < self._reporter.warning_count:
                     wandb.termlog("More warnings")
 
-            error_lines = self._reporter.error_lines
-            if error_lines:
+            if error_lines := self._reporter.error_lines:
                 wandb.termlog("Errors:")
                 for line in error_lines:
                     wandb.termlog(line)
@@ -1434,38 +1417,38 @@ class Run(object):
             wandb.termwarn(self._yanked_version_message)
             package_problem = True
         # only display upgrade message if packages are bad or in header
-        if not footer or package_problem:
-            if self._upgraded_version_message:
-                wandb.termlog(self._upgraded_version_message)
+        if (not footer or package_problem) and self._upgraded_version_message:
+            wandb.termlog(self._upgraded_version_message)
 
     def _show_summary(self):
-        if self._final_summary:
-            logger.info("rendering summary")
-            max_len = max([len(k) for k in self._final_summary.keys()])
-            format_str = "  {:>%s} {}" % max_len
-            summary_rows = []
-            for k, v in iteritems(self._final_summary):
+        if not self._final_summary:
+            return
+        logger.info("rendering summary")
+        max_len = max(len(k) for k in self._final_summary.keys())
+        format_str = "  {:>%s} {}" % max_len
+        summary_rows = []
+        for k, v in iteritems(self._final_summary):
                 # arrays etc. might be too large. for now we just don't print them
-                if isinstance(v, string_types):
-                    if len(v) >= 20:
-                        v = v[:20] + "..."
-                    summary_rows.append((k, v))
-                elif isinstance(v, numbers.Number):
-                    if isinstance(v, float):
-                        v = round(v, 5)
-                    summary_rows.append((k, v))
-            if self._settings._jupyter:
-                summary_table = ipython.STYLED_TABLE_HTML
-                for row in summary_rows:
-                    summary_table += "<tr><td>{}</td><td>{}</td></tr>".format(*row)
-                summary_table += "</table>"
-                ipython.display_html("<h3>Run summary:</h3><br/>" + summary_table)
-            else:
-                summary_lines = "\n".join(
-                    [format_str.format(k, v) for k, v in summary_rows]
-                )
-                wandb.termlog("Run summary:")
-                wandb.termlog(summary_lines)
+            if isinstance(v, string_types):
+                if len(v) >= 20:
+                    v = f'{v[:20]}...'
+                summary_rows.append((k, v))
+            elif isinstance(v, numbers.Number):
+                if isinstance(v, float):
+                    v = round(v, 5)
+                summary_rows.append((k, v))
+        if self._settings._jupyter:
+            summary_table = ipython.STYLED_TABLE_HTML
+            for row in summary_rows:
+                summary_table += "<tr><td>{}</td><td>{}</td></tr>".format(*row)
+            summary_table += "</table>"
+            ipython.display_html(f'<h3>Run summary:</h3><br/>{summary_table}')
+        else:
+            summary_lines = "\n".join(
+                [format_str.format(k, v) for k, v in summary_rows]
+            )
+            wandb.termlog("Run summary:")
+            wandb.termlog(summary_lines)
 
     def _show_history(self):
         if not self._sampled_history:
@@ -1479,7 +1462,7 @@ class Run(object):
             return
 
         logger.info("rendering history")
-        max_len = max([len(k) for k in self._sampled_history])
+        max_len = max(len(k) for k in self._sampled_history)
         history_rows = []
         for key in self._sampled_history:
             vals = wandb.util.downsample(self._sampled_history[key], 40)
@@ -1492,13 +1475,11 @@ class Run(object):
             for row in history_rows:
                 history_table += "<tr><td>{}</td><td>{}</td></tr>".format(*row)
             history_table += "</table>"
-            ipython.display_html("<h3>Run history:</h3><br/>" + history_table + "<br/>")
+            ipython.display_html(f'<h3>Run history:</h3><br/>{history_table}<br/>')
         else:
             wandb.termlog("Run history:")
-            history_lines = ""
             format_str = u"  {:>%s} {}\n" % max_len
-            for row in history_rows:
-                history_lines += format_str.format(*row)
+            history_lines = "".join(format_str.format(*row) for row in history_rows)
             wandb.termlog(history_lines)
 
     def _show_files(self):
@@ -1681,7 +1662,7 @@ class Run(object):
             raise ValueError("level must be one of 'INFO', 'WARN', or 'ERROR'")
 
         wait_duration = wait_duration or timedelta(minutes=1)
-        if isinstance(wait_duration, int) or isinstance(wait_duration, float):
+        if isinstance(wait_duration, (int, float)):
             wait_duration = timedelta(seconds=wait_duration)
         elif not callable(getattr(wait_duration, "total_seconds", None)):
             raise ValueError(
@@ -1739,15 +1720,14 @@ def restore(
             raise ValueError(
                 "run_path required when calling wandb.restore before wandb.init"
             )
-    if root is None:
-        if wandb.run is not None:
-            root = wandb.run.dir
+    if root is None and wandb.run is not None:
+        root = wandb.run.dir
     api = public.Api()
     api_run = api.run(run_path)
     if root is None:
         root = os.getcwd()
     path = os.path.join(root, name)
-    if os.path.exists(path) and replace is False:
+    if os.path.exists(path) and not replace:
         return open(path, "r")
     files = api_run.files([name])
     if len(files) == 0:

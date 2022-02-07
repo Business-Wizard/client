@@ -207,24 +207,24 @@ class Config(object):
         # We always normalize keys by stripping '-'
         key = key.strip("-")
         val = self._sanitize_val(val)
-        if not allow_val_change:
-            if key in self._items and val != self._items[key]:
-                raise config_util.ConfigError(
-                    (
-                        'Attempted to change value of key "{}" '
-                        "from {} to {}\n"
-                        "If you really want to do this, pass"
-                        " allow_val_change=True to config.update()"
-                    ).format(key, self._items[key], val)
-                )
+        if not allow_val_change and key in self._items and val != self._items[key]:
+            raise config_util.ConfigError(
+                (
+                    'Attempted to change value of key "{}" '
+                    "from {} to {}\n"
+                    "If you really want to do this, pass"
+                    " allow_val_change=True to config.update()"
+                ).format(key, self._items[key], val)
+            )
         return key, val
 
     def _sanitize_val(self, val):
         """Turn all non-builtin values into something safe for YAML"""
         if isinstance(val, dict):
-            converted = {}
-            for key, value in six.iteritems(val):
-                converted[key] = self._sanitize_val(value)
+            converted = {
+                key: self._sanitize_val(value) for key, value in six.iteritems(val)
+            }
+
             return converted
         if isinstance(val, slice):
             converted = dict(
@@ -233,9 +233,7 @@ class Config(object):
             return converted
         val, _ = json_friendly(val)
         if isinstance(val, Sequence) and not isinstance(val, six.string_types):
-            converted = []
-            for value in val:
-                converted.append(self._sanitize_val(value))
+            converted = [self._sanitize_val(value) for value in val]
             return converted
         else:
             if val.__class__.__module__ not in ("builtins", "__builtin__"):

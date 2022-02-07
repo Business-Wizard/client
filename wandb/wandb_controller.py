@@ -145,8 +145,7 @@ class _Run(object):
         if summaryMetrics:
             summaryMetrics = json.loads(summaryMetrics)
         shouldStop = run_dict["shouldStop"]
-        r = cls(name, state, history, config, summaryMetrics, stopped, shouldStop)
-        return r
+        return cls(name, state, history, config, summaryMetrics, stopped, shouldStop)
 
 
 class ControllerError(Exception):
@@ -403,17 +402,13 @@ class _WandbController:
             raise ControllerError("Can not use create on already created sweep.")
         if not self._create:
             raise ControllerError("Must configure sweep before create.")
-        # Do validation if local controller
-        is_local = self._create.get("controller", {}).get("type") == "local"
-        if is_local:
-            msg = self._validate(self._create)
-            if msg:
+        if is_local := self._create.get("controller", {}).get("type") == "local":
+            if msg := self._validate(self._create):
                 raise ControllerError("Validate Error: %s" % msg)
         # Create sweep
         sweep_id = self._api.upsert_sweep(self._create)
         print("Create sweep with ID:", sweep_id)
-        sweep_url = _get_sweep_url(self._api, sweep_id)
-        if sweep_url:
+        if sweep_url := _get_sweep_url(self._api, sweep_id):
             print("Sweep URL:", sweep_url)
         self._sweep_id = sweep_id
         self._defer_sweep_creation = False
@@ -440,8 +435,7 @@ class _WandbController:
     def _sweep_object_read_from_backend(self):
         specs_json = {}
         if self._sweep_metric:
-            k = ["_step"]
-            k.append(self._sweep_metric)
+            k = ['_step', self._sweep_metric]
             specs_json = {"keys": k, "samples": 100000}
         specs = json.dumps(specs_json)
         # TODO(jhr): catch exceptions?
@@ -538,8 +532,7 @@ class _WandbController:
         self._step()
         params = self.search()
         self.schedule(params)
-        runs = self.stopping()
-        if runs:
+        if runs := self.stopping():
             self.stop_runs(runs)
 
     def done(self):
@@ -557,23 +550,17 @@ class _WandbController:
         next_run = search.next_run(sweep)
         if next_run:
             next_run, info = next_run
-            if info:
-                # print("DEBUG", info)
-                pass
         else:
             self._done_scheduling = True
         return next_run
 
     def search(self):
         self._start_if_not_started()
-        params = self._search()
-        return params
+        return self._search()
 
     def _validate(self, config):
         """Make sure config is valid."""
-        sweep = {}
-        sweep["config"] = config
-        sweep["runs"] = []
+        sweep = {'config': config, 'runs': []}
         search = self._custom_search or wandb_sweeps.Search.to_class(config)
         try:
             _ = search.next_run(sweep)
@@ -598,16 +585,14 @@ class _WandbController:
             self._sweep_config
         )
         stop_runs, info = stopper.stop_runs(self._sweep_config, sweep["runs"])
-        debug_lines = info.get("lines", [])
-        if debug_lines:
+        if debug_lines := info.get("lines", []):
             self._log_debug += debug_lines
 
         return stop_runs
 
     def stopping(self):
         self._start_if_not_started()
-        runs = self._stopping()
-        return runs
+        return self._stopping()
 
     def schedule(self, params):
         self._start_if_not_started()
@@ -622,10 +607,8 @@ class _WandbController:
             ]
             self._log_actions.append(("schedule", ",".join(param_list)))
 
-        # schedule one run
-        schedule_list = []
         schedule_id = _id_generator()
-        schedule_list.append({"id": schedule_id, "data": {"args": params}})
+        schedule_list = [{"id": schedule_id, "data": {"args": params}}]
         self._controller["schedule"] = schedule_list
 
         self._sweep_object_sync_to_backend()
@@ -673,10 +656,9 @@ def controller(sweep_id_or_config=None, entity=None, project=None):
         tuner.configure_stopping(...)
 
     """
-    c = _WandbController(
+    return _WandbController(
         sweep_id_or_config=sweep_id_or_config, entity=entity, project=project
     )
-    return c
 
 
 def _get_run_counts(runs):
@@ -684,11 +666,7 @@ def _get_run_counts(runs):
     categories = ("running", "finished", "crashed", "failed")
     for r in runs:
         state = r.state
-        found = "unknown"
-        for c in categories:
-            if state == c:
-                found = c
-                break
+        found = next((c for c in categories if state == c), "unknown")
         metrics.setdefault(found, 0)
         metrics[found] += 1
     return metrics
@@ -696,13 +674,13 @@ def _get_run_counts(runs):
 
 def _get_runs_status(metrics):
     categories = ("finished", "crashed", "failed", "unknown", "running")
-    mlist = []
-    for c in categories:
-        if not metrics.get(c):
-            continue
-        mlist.append("%s: %d" % (c.capitalize(), metrics[c]))
-    s = ", ".join(mlist)
-    return s
+    mlist = [
+        "%s: %d" % (c.capitalize(), metrics[c])
+        for c in categories
+        if metrics.get(c)
+    ]
+
+    return ", ".join(mlist)
 
 
 def _sweep_status(sweep_obj, sweep_conf, sweep_runs):
@@ -712,21 +690,20 @@ def _sweep_status(sweep_obj, sweep_conf, sweep_runs):
     run_type_counts = _get_run_counts(sweep_runs)
     stopped = len([r for r in sweep_runs if r.stopped])
     stopping = len([r for r in sweep_runs if r.shouldStop])
-    stopstr = ""
     if stopped or stopping:
         stopstr = "Stopped: %d" % stopped
-        if stopping:
-            stopstr += " (Stopping: %d)" % stopping
+    else:
+        stopstr = ""
+    if stopping:
+        stopstr += " (Stopping: %d)" % stopping
     runs_status = _get_runs_status(run_type_counts)
     method = sweep_conf.get("method", "unknown")
     stopping = sweep_conf.get("early_terminate", None)
-    sweep_options = []
-    sweep_options.append(method)
+    sweep_options = [method]
     if stopping:
         sweep_options.append(stopping.get("type", "unknown"))
     sweep_options = ",".join(sweep_options)
-    sections = []
-    sections.append("Sweep: %s (%s)" % (sweep, sweep_options))
+    sections = ["Sweep: %s (%s)" % (sweep, sweep_options)]
     if runs_status:
         sections.append("Runs: %d (%s)" % (run_count, runs_status))
     else:
@@ -756,7 +733,6 @@ def sweep(sweep, entity=None, project=None):
     api = InternalApi()
     sweep_id = api.upsert_sweep(sweep)
     print("Create sweep with ID:", sweep_id)
-    sweep_url = _get_sweep_url(api, sweep_id)
-    if sweep_url:
+    if sweep_url := _get_sweep_url(api, sweep_id):
         print("Sweep URL:", sweep_url)
     return sweep_id

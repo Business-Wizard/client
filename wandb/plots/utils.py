@@ -33,7 +33,7 @@ def test_missing(**kwargs):
         if v is None:
             wandb.termerror("%s is None. Please try again." % (k))
             test_passed = False
-        if (k == "X") or (k == "X_test"):
+        if k in ["X", "X_test"]:
             if isinstance(v, scipy.sparse.csr.csr_matrix):
                 v = v.toarray()
             elif isinstance(v, (pd.DataFrame, pd.Series)):
@@ -50,14 +50,10 @@ def test_missing(**kwargs):
             # Ensure the dataset contains only integers
             non_nums = 0
             if v.ndim == 1:
-                non_nums = sum(
-                    1
-                    for val in v
-                    if (
+                non_nums = sum((
                         not isinstance(val, (int, float, complex))
                         and not isinstance(val, np.number)
-                    )
-                )
+                    ) for val in v)
             else:
                 non_nums = sum(
                     1
@@ -142,32 +138,30 @@ def test_types(**kwargs):
     test_passed = True
     for k, v in kwargs.items():
         # check for incorrect types
-        if (
-            (k == "X")
-            or (k == "X_test")
-            or (k == "y")
-            or (k == "y_test")
-            or (k == "y_true")
-            or (k == "y_probas")
-            or (k == "x_labels")
-            or (k == "y_labels")
-            or (k == "matrix_values")
+        if k in [
+            "X",
+            "X_test",
+            "y",
+            "y_test",
+            "y_true",
+            "y_probas",
+            "x_labels",
+            "y_labels",
+            "matrix_values",
+        ] and not isinstance(
+            v,
+            (
+                Sequence,
+                Iterable,
+                np.ndarray,
+                np.generic,
+                pd.DataFrame,
+                pd.Series,
+                list,
+            ),
         ):
-            # FIXME: do this individually
-            if not isinstance(
-                v,
-                (
-                    Sequence,
-                    Iterable,
-                    np.ndarray,
-                    np.generic,
-                    pd.DataFrame,
-                    pd.Series,
-                    list,
-                ),
-            ):
-                wandb.termerror("%s is not an array. Please try again." % (k))
-                test_passed = False
+            wandb.termerror("%s is not an array. Please try again." % (k))
+            test_passed = False
         # check for classifier types
         if k == "model":
             if (not scikit.base.is_classifier(v)) and (not scikit.base.is_regressor(v)):
@@ -175,7 +169,7 @@ def test_types(**kwargs):
                     "%s is not a classifier or regressor. Please try again." % (k)
                 )
                 test_passed = False
-        elif k == "clf" or k == "binary_clf":
+        elif k in ["clf", "binary_clf"]:
             if not (scikit.base.is_classifier(v)):
                 wandb.termerror("%s is not a classifier. Please try again." % (k))
                 test_passed = False
@@ -184,7 +178,7 @@ def test_types(**kwargs):
                 wandb.termerror("%s is not a regressor. Please try again." % (k))
                 test_passed = False
         elif k == "clusterer":
-            if not (getattr(v, "_estimator_type", None) == "clusterer"):
+            if getattr(v, "_estimator_type", None) != "clusterer":
                 wandb.termerror("%s is not a clusterer. Please try again." % (k))
                 test_passed = False
     return test_passed

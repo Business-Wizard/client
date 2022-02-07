@@ -62,8 +62,9 @@ class ParameterModule(nn.Module):
     def __init__(self):
         super(ParameterModule, self).__init__()
         self.params = nn.ParameterList(
-            [nn.Parameter(torch.ones(10, 10)) for i in range(10)]
+            [nn.Parameter(torch.ones(10, 10)) for _ in range(10)]
         )
+
         self.otherparam = nn.Parameter(torch.Tensor(5))
 
     def forward(self, x):
@@ -87,12 +88,12 @@ class Sequence(nn.Module):
         h_t2 = dummy_torch_tensor((input.size(0), 51))
         c_t2 = dummy_torch_tensor((input.size(0), 51))
 
-        for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
+        for input_t in input.chunk(input.size(1), dim=1):
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
             outputs += [output]
-        for i in range(future):  # if we should predict the future
+        for _ in range(future):
             h_t, c_t = self.lstm1(output, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
             output = self.linear(h_t2)
@@ -138,7 +139,7 @@ def conv3x3(in_channels, out_channels, **kwargs):
 def test_all_logging(wandb_init_run):
     net = ConvNet()
     wandb.watch(net, log="all", log_freq=1)
-    for i in range(3):
+    for _ in range(3):
         output = net(dummy_torch_tensor((32, 1, 28, 28)))
         grads = torch.ones(32, 10)
         output.backward(grads)

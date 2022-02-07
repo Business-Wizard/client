@@ -85,12 +85,11 @@ class CRDedupeFilePolicy(DefaultFilePolicy):
             if token == "ERROR":
                 prefix += token + " "
                 token, rest = rest.split(" ", 1)
-            prefix += token + " "
+            prefix += f'{token} '
 
             lines = rest.split(os.linesep)
             for line in lines:
-                line = line.split("\r")[-1]
-                if line:
+                if line := line.split("\r")[-1]:
                     # check for cursor up control character
                     if line.endswith("\x1b\x5b\x41"):
                         if flag:
@@ -129,7 +128,7 @@ class FileStreamApi(object):
 
     def __init__(self, api, run_id, start_time, settings=None):
         if settings is None:
-            settings = dict()
+            settings = {}
         self._settings = settings
         self._api = api
         self._run_id = run_id
@@ -247,8 +246,6 @@ class FileStreamApi(object):
         """Logs dropped chunks and updates dynamic settings"""
         if isinstance(response, Exception):
             raise response
-            wandb.termerror("Droppped streaming file chunk (see wandb/debug.log)")
-            logging.error("dropped chunk %s" % response)
         elif response.json().get("limits"):
             parsed = response.json()
             self._api.dynamic_settings.update(parsed["limits"])

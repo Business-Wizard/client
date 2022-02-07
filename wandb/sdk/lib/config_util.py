@@ -18,17 +18,14 @@ class ConfigError(Error):  # type: ignore
 
 
 def dict_from_proto_list(obj_list):
-    d = dict()
-    for item in obj_list:
-        d[item.key] = dict(desc=None, value=json.loads(item.value_json))
-    return d
+    return {
+        item.key: dict(desc=None, value=json.loads(item.value_json))
+        for item in obj_list
+    }
 
 
 def dict_no_value_from_proto_list(obj_list):
-    d = dict()
-    for item in obj_list:
-        d[item.key] = json.loads(item.value_json)["value"]
-    return d
+    return {item.key: json.loads(item.value_json)["value"] for item in obj_list}
 
 
 # TODO(jhr): these functions should go away once we merge jobspec PR
@@ -65,7 +62,4 @@ def dict_from_config_file(filename, must_exist=False):
     config_version = loaded.pop("wandb_version", None)
     if config_version is not None and config_version != 1:
         raise ConfigError("Unknown config version")
-    data = dict()
-    for k, v in six.iteritems(loaded):
-        data[k] = v["value"]
-    return data
+    return {k: v["value"] for k, v in six.iteritems(loaded)}

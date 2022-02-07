@@ -27,9 +27,7 @@ from wandb.old.summary import HTTPSummary
 import yaml
 
 
-# TODO: consolidate dynamic imports
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     from wandb.sdk.interface import artifacts
 else:
     from wandb.sdk_py27.interface import artifacts
@@ -349,10 +347,10 @@ class Api(object):
         """
         if entity is None:
             entity = self.settings["entity"] or self.default_entity
-            if entity is None:
-                raise ValueError(
-                    "entity must be passed as a parameter, or set in settings"
-                )
+        if entity is None:
+            raise ValueError(
+                "entity must be passed as a parameter, or set in settings"
+            )
         if entity not in self._projects:
             self._projects[entity] = Projects(self.client, entity, per_page=per_page)
         return self._projects[entity]
@@ -374,10 +372,10 @@ class Api(object):
         entity, project, run = self._parse_path(path)
         if entity is None:
             entity = self.settings["entity"] or self.default_entity
-            if entity is None:
-                raise ValueError(
-                    "entity must be passed as a parameter, or set in settings"
-                )
+        if entity is None:
+            raise ValueError(
+                "entity must be passed as a parameter, or set in settings"
+            )
         if name:
             name = urllib.parse.unquote(name)
         key = "/".join([entity, project, str(name)])
@@ -601,11 +599,10 @@ class Paginator(object):
 
     def __next__(self):
         self.index += 1
+        if len(self.objects) <= self.index and not self._load_page():
+            raise StopIteration
         if len(self.objects) <= self.index:
-            if not self._load_page():
-                raise StopIteration
-            if len(self.objects) <= self.index:
-                raise StopIteration
+            raise StopIteration
         return self.objects[self.index]
 
     next = __next__
@@ -1026,9 +1023,7 @@ class Run(Attrs):
 
     @property
     def json_config(self):
-        config = {}
-        for k, v in six.iteritems(self.config):
-            config[k] = {"value": v, "desc": None}
+        config = {k: {"value": v, "desc": None} for k, v in six.iteritems(self.config)}
         return json.dumps(config)
 
     def _exec(self, query, **kwargs):
@@ -1142,8 +1137,7 @@ class Run(Attrs):
         else:
             lines = self._full_history(samples=samples, stream=stream)
         if pandas:
-            pandas = util.get_module("pandas")
-            if pandas:
+            if pandas := util.get_module("pandas"):
                 lines = pandas.DataFrame.from_records(lines)
             else:
                 print("Unable to load pandas, call history with pandas=False")
@@ -1402,10 +1396,7 @@ class Sweep(Attrs):
 
     def best_run(self, order=None):
         "Returns the best run sorted by the metric defined in config or the order passed in"
-        if order is None:
-            order = self.order
-        else:
-            order = QueryGenerator.format_order_key(order)
+        order = self.order if order is None else QueryGenerator.format_order_key(order)
         if order is None:
             wandb.termwarn(
                 "No order specified and couldn't find metric in sweep config, returning most recent run"
@@ -1751,8 +1742,7 @@ class QueryGenerator(object):
         if len(parts) == 1:
             # Assume the user meant summary_metrics if not a run column
             if parts[0] not in ["createdAt", "updatedAt", "name", "sweep"]:
-                return direction + "summary_metrics." + parts[0]
-        # Assume summary metrics if prefix isn't known
+                return f'{direction}summary_metrics.{parts[0]}'
         elif parts[0] not in ["config", "summary_metrics", "tags"]:
             return direction + ".".join(["summary_metrics"] + parts)
         else:
@@ -1765,10 +1755,7 @@ class QueryGenerator(object):
         return op.get("key") is not None
 
     def _to_mongo_op_value(self, op, value):
-        if op == "=":
-            return value
-        else:
-            return {self.INDIVIDUAL_OP_TO_MONGO[op]: value}
+        return value if op == "=" else {self.INDIVIDUAL_OP_TO_MONGO[op]: value}
 
     def key_to_server_path(self, key):
         if key["section"] == "config":
@@ -1780,7 +1767,7 @@ class QueryGenerator(object):
         elif key["section"] == "run":
             return key["name"]
         elif key["section"] == "tags":
-            return "tags." + key["name"]
+            return f'tags.{key["name"]}'
         raise ValueError("Invalid key: %s" % key)
 
     def _to_mongo_individual(self, filter):
@@ -1847,10 +1834,7 @@ class BetaReport(Attrs):
         run_set_idx = section.get("openRunSet", 0)
         run_set = section["runSets"][run_set_idx]
         order = self.query_generator.key_to_server_path(run_set["sort"]["key"])
-        if run_set["sort"].get("ascending"):
-            order = "+" + order
-        else:
-            order = "-" + order
+        order = "+" + order if run_set["sort"].get("ascending") else f'-{order}'
         filters = self.query_generator.filter_to_mongo(run_set["filters"])
         if only_selected:
             # TODO: handle this not always existing
@@ -2612,11 +2596,10 @@ class Artifact(object):
                     head, tail = os.path.splitdrive(target_path)
                     target_path = head + tail.replace(":", "-")
 
-                need_copy = (
+                if need_copy := (
                     not os.path.isfile(target_path)
                     or os.stat(cache_path).st_mtime != os.stat(target_path).st_mtime
-                )
-                if need_copy:
+                ):
                     util.mkdir_exists_ok(os.path.dirname(target_path))
                     # We use copy2, which preserves file metadata including modified
                     # time (which we use above to check whether we should do the copy).
@@ -2716,9 +2699,7 @@ class Artifact(object):
         manifest = self._load_manifest()
         nfiles = len(manifest.entries)
         size = sum(e.size for e in manifest.entries.values())
-        log = False
-        if nfiles > 5000 or size > 50 * 1024 * 1024:
-            log = True
+        log = nfiles > 5000 or size > 50 * 1024 * 1024
         if log:
             termlog(
                 "Downloading large artifact %s, %.2fMB. %s files... "
@@ -3042,12 +3023,12 @@ class ArtifactVersions(Paginator):
                 self.client,
                 self.entity,
                 self.project,
-                self.collection_name + ":" + a["version"],
+                f'{self.collection_name}:{a["version"]}',
                 a["node"],
             )
-            for a in self.last_response["project"]["artifactType"]["artifactSequence"][
-                "artifacts"
-            ]["edges"]
+            for a in self.last_response["project"]["artifactType"][
+                "artifactSequence"
+            ]["artifacts"]["edges"]
         ]
 
 

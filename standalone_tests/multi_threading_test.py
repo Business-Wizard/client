@@ -9,9 +9,7 @@ def thread_test(n):
 
 def main():
     try:
-        threads = []
-        for i in range(10):
-            threads.append(threading.Thread(target=thread_test, args=(i,)))
+        threads = [threading.Thread(target=thread_test, args=(i,)) for i in range(10)]
         for thread in threads:
             thread.start()
         for thread in threads:

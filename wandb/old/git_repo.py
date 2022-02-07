@@ -30,9 +30,7 @@ class GitRepo(object):
         return self._repo
 
     def is_untracked(self, file_name):
-        if not self.repo:
-            return True
-        return file_name in self.repo.untracked_files
+        return True if not self.repo else file_name in self.repo.untracked_files
 
     @property
     def enabled(self):
@@ -40,15 +38,11 @@ class GitRepo(object):
 
     @property
     def root(self):
-        if not self.repo:
-            return False
-        return self.repo.git.rev_parse("--show-toplevel")
+        return False if not self.repo else self.repo.git.rev_parse("--show-toplevel")
 
     @property
     def dirty(self):
-        if not self.repo:
-            return False
-        return self.repo.is_dirty()
+        return False if not self.repo else self.repo.is_dirty()
 
     @property
     def email(self):
@@ -72,9 +66,7 @@ class GitRepo(object):
 
     @property
     def branch(self):
-        if not self.repo:
-            return None
-        return self.repo.head.ref.name
+        return None if not self.repo else self.repo.head.ref.name
 
     @property
     def remote(self):
@@ -89,21 +81,15 @@ class GitRepo(object):
     # https://stackoverflow.com/questions/10757091/git-list-of-all-changed-files-including-those-in-submodules
     @property
     def has_submodule_diff(self):
-        if not self.repo:
-            return False
-        return self.repo.git.version_info >= (2, 11, 0)
+        return False if not self.repo else self.repo.git.version_info >= (2, 11, 0)
 
     @property
     def remote_url(self):
-        if not self.remote:
-            return None
-        return self.remote.url
+        return None if not self.remote else self.remote.url
 
     @property
     def root_dir(self):
-        if not self.repo:
-            return None
-        return self.repo.git.rev_parse("--show-toplevel")
+        return None if not self.repo else self.repo.git.rev_parse("--show-toplevel")
 
     def get_upstream_fork_point(self):
         """Get the most recent ancestor of HEAD that occurs on an upstream
@@ -126,8 +112,7 @@ class GitRepo(object):
                 logger.debug("git is in a detached head state")
                 return None  # detached head
             else:
-                tracking_branch = active_branch.tracking_branch()
-                if tracking_branch:
+                if tracking_branch := active_branch.tracking_branch():
                     possible_relatives.append(tracking_branch.commit)
 
             if not possible_relatives:
@@ -141,9 +126,11 @@ class GitRepo(object):
             for possible_relative in possible_relatives:
                 # at most one:
                 for ancestor in self.repo.merge_base(head, possible_relative):
-                    if most_recent_ancestor is None:
-                        most_recent_ancestor = ancestor
-                    elif self.repo.is_ancestor(most_recent_ancestor, ancestor):
+                    if (
+                        most_recent_ancestor is None
+                        or most_recent_ancestor is not None
+                        and self.repo.is_ancestor(most_recent_ancestor, ancestor)
+                    ):
                         most_recent_ancestor = ancestor
             return most_recent_ancestor
         except exc.GitCommandError as e:
@@ -153,7 +140,7 @@ class GitRepo(object):
 
     def tag(self, name, message):
         try:
-            return self.repo.create_tag("wandb/" + name, message=message, force=True)
+            return self.repo.create_tag(f'wandb/{name}', message=message, force=True)
         except exc.GitCommandError:
             print("Failed to tag repository.")
             return None
@@ -161,7 +148,7 @@ class GitRepo(object):
     def push(self, name):
         if self.remote:
             try:
-                return self.remote.push("wandb/" + name, force=True)
+                return self.remote.push(f'wandb/{name}', force=True)
             except exc.GitCommandError:
                 logger.debug("failed to push git")
                 return None

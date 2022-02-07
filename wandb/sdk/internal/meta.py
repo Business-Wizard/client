@@ -49,7 +49,7 @@ class Meta(object):
         try:
             import pkg_resources
 
-            installed_packages = [d for d in iter(pkg_resources.working_set)]
+            installed_packages = list(iter(pkg_resources.working_set))
             installed_packages_list = sorted(
                 ["%s==%s" % (i.key, i.version) for i in installed_packages]
             )

@@ -182,19 +182,17 @@ def _fit_wrapper(self, fn, generator=None, *args, **kwargs):
         batch_size = magic_batch_size
     callbacks = kwargs.pop("callbacks", [])
 
-    tb_enabled = _magic_get_config("keras.fit.callbacks.tensorboard.enable", None)
-    if tb_enabled:
-        k = getattr(self, "_keras_or_tfkeras", None)
-        if k:
+    if tb_enabled := _magic_get_config(
+        "keras.fit.callbacks.tensorboard.enable", None
+    ):
+        if k := getattr(self, "_keras_or_tfkeras", None):
             tb_duplicate = _magic_get_config(
                 "keras.fit.callbacks.tensorboard.duplicate", None
             )
             tb_overwrite = _magic_get_config(
                 "keras.fit.callbacks.tensorboard.overwrite", None
             )
-            tb_present = any(
-                [isinstance(cb, k.callbacks.TensorBoard) for cb in callbacks]
-            )
+            tb_present = any(isinstance(cb, k.callbacks.TensorBoard) for cb in callbacks)
             if tb_present and tb_overwrite:
                 callbacks = [
                     cb
@@ -212,21 +210,21 @@ def _fit_wrapper(self, fn, generator=None, *args, **kwargs):
                     "batch_size",
                 )
                 for cb_arg in cb_args:
-                    v = _magic_get_config(
-                        "keras.fit.callbacks.tensorboard." + cb_arg, None
-                    )
+                    v = _magic_get_config(f'keras.fit.callbacks.tensorboard.{cb_arg}', None)
                     if v is not None:
                         tb_callback_kwargs[cb_arg] = v
                 tb_callback = k.callbacks.TensorBoard(**tb_callback_kwargs)
                 callbacks.append(tb_callback)
 
-    wandb_enabled = _magic_get_config("keras.fit.callbacks.wandb.enable", None)
-    if wandb_enabled:
+    if wandb_enabled := _magic_get_config(
+        "keras.fit.callbacks.wandb.enable", None
+    ):
         wandb_duplicate = _magic_get_config("keras.fit.callbacks.wandb.duplicate", None)
         wandb_overwrite = _magic_get_config("keras.fit.callbacks.wandb.overwrite", None)
         wandb_present = any(
-            [isinstance(cb, wandb.keras.WandbCallback) for cb in callbacks]
+            isinstance(cb, wandb.keras.WandbCallback) for cb in callbacks
         )
+
         if wandb_present and wandb_overwrite:
             callbacks = [
                 cb for cb in callbacks if not isinstance(cb, wandb.keras.WandbCallback)
@@ -438,8 +436,7 @@ def _magic_update_config():
     # if we already have config set, dont add anymore
     if wandb.run and wandb.run.config:
         c = wandb.run.config
-        user_config = dict(c.items())
-        if user_config:
+        if user_config := dict(c.items()):
             return
     if _magic_get_config("args.absl", None) is False:
         global _args_absl
@@ -516,7 +513,7 @@ def magic_install(init_args=None):
     magic_from_config = {}
     MAGIC_KEY = "wandb_magic"
     for k in wandb.config.keys():
-        if not k.startswith(MAGIC_KEY + "."):
+        if not k.startswith(f'{MAGIC_KEY}.'):
             continue
         d = _dict_from_keyval(k, wandb.config[k], json_parse=False)
         _merge_dicts(d, magic_from_config)

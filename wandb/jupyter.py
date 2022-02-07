@@ -108,13 +108,17 @@ def notebook_metadata():
         for nn in res:
             # TODO: wandb/client#400 found a case where res returned an array of
             # strings...
-            if isinstance(nn, dict) and nn.get("kernel") and "notebook" in nn:
-                if nn["kernel"]["id"] == kernel_id:
-                    return {
-                        "root": s["notebook_dir"],
-                        "path": nn["notebook"]["path"],
-                        "name": nn["notebook"]["name"],
-                    }
+            if (
+                isinstance(nn, dict)
+                and nn.get("kernel")
+                and "notebook" in nn
+                and nn["kernel"]["id"] == kernel_id
+            ):
+                return {
+                    "root": s["notebook_dir"],
+                    "path": nn["notebook"]["path"],
+                    "name": nn["notebook"]["name"],
+                }
     return {}
 
 
@@ -213,14 +217,11 @@ class Notebook(object):
                 else:
                     outputs = []
                 if self.outputs.get(execution_count):
-                    for out in self.outputs[execution_count]:
-                        outputs.append(
-                            v4.new_output(
+                    outputs.extend(v4.new_output(
                                 output_type="display_data",
                                 data=out["data"],
                                 metadata=out["metadata"] or {},
-                            )
-                        )
+                            ) for out in self.outputs[execution_count])
                 cells.append(
                     v4.new_code_cell(
                         execution_count=execution_count, source=exc[0], outputs=outputs
@@ -252,4 +253,3 @@ class Notebook(object):
                 write(nb, f, version=4)
         except (OSError, validator.NotebookValidationError) as e:
             logger.error("Unable to save ipython session history:\n%s", e)
-            pass

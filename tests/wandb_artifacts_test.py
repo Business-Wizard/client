@@ -690,11 +690,10 @@ def simulate_artifact_download(artifact):
             artifact._artifact_dir.name, os.path.dirname(entry.path)
         )
         target_file = os.path.join(artifact._artifact_dir.name, entry.path)
-        if entry.local_path != target_file:
-            if not os.path.exists(target_file):
-                if not os.path.exists(target_path):
-                    os.makedirs(target_path)
-                shutil.copy(entry.local_path, target_file)
+        if entry.local_path != target_file and not os.path.exists(target_file):
+            if not os.path.exists(target_path):
+                os.makedirs(target_path)
+            shutil.copy(entry.local_path, target_file)
 
 
 def assert_json_serialization(obj):

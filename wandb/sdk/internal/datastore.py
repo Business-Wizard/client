@@ -198,7 +198,6 @@ class DataStore(object):
 
         offset = self._index % LEVELDBLOG_BLOCK_LEN
         space_left = LEVELDBLOG_BLOCK_LEN - offset
-        data_used = 0
         data_left = len(s)
         # logger.info("write_data: index=%d offset=%d len=%d",
         #     self._index, offset, data_left)
@@ -217,6 +216,7 @@ class DataStore(object):
             # but this write will end on a block boundary)
             data_room = space_left - LEVELDBLOG_HEADER_LEN
             self._write_record(s[:data_room], LEVELDBLOG_FIRST)
+            data_used = 0
             data_used += data_room
             data_left -= data_room
             assert data_left
@@ -249,8 +249,7 @@ class DataStore(object):
         raw_size = obj.ByteSize()
         s = obj.SerializeToString()
         assert len(s) == raw_size
-        ret = self._write_data(s)
-        return ret
+        return self._write_data(s)
 
     def close(self):
         if self._fp is not None:

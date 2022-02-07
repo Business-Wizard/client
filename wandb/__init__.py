@@ -14,6 +14,7 @@ The most commonly used functions/objects are:
 For examples usage, see https://docs.wandb.com/library/example-projects
 """
 
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -31,8 +32,7 @@ from wandb.errors import Error
 # This needs to be early as other modules call it.
 from wandb.errors.term import termsetup, termlog, termerror, termwarn
 
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     TYPE_CHECKING = True
     from wandb import sdk as wandb_sdk
 else:

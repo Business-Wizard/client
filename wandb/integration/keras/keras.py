@@ -34,8 +34,9 @@ def is_generator_like(data):
     # Checks if data is a generator, Sequence, or Iterator.
 
     types = (keras.utils.Sequence,)
-    iterator_ops = wandb.util.get_module("tensorflow.python.data.ops.iterator_ops")
-    if iterator_ops:
+    if iterator_ops := wandb.util.get_module(
+        "tensorflow.python.data.ops.iterator_ops"
+    ):
         types = types + (iterator_ops.Iterator,)
         # EagerIterator was in tensorflow < 2
         if hasattr(iterator_ops, "EagerIterator"):
@@ -105,16 +106,14 @@ def patch_tf_keras():
 
     def new_generator(*args, **kwargs):
         cbks = kwargs.get("callbacks", [])
-        val_data = kwargs.get("validation_data")
-        if val_data:
+        if val_data := kwargs.get("validation_data"):
             for cbk in cbks:
                 set_wandb_attrs(cbk, val_data)
         return old_generator(*args, **kwargs)
 
     def new_v2(*args, **kwargs):
         cbks = kwargs.get("callbacks", [])
-        val_data = kwargs.get("validation_data")
-        if val_data:
+        if val_data := kwargs.get("validation_data"):
             for cbk in cbks:
                 set_wandb_attrs(cbk, val_data)
         return old_v2(*args, **kwargs)
@@ -297,9 +296,8 @@ class WandbCallback(keras.callbacks.Callback):
 
         self._prediction_batch_size = None
 
-        if self.training_data:
-            if len(self.training_data) != 2:
-                raise ValueError("training data must be a tuple of length two")
+        if self.training_data and len(self.training_data) != 2:
+            raise ValueError("training data must be a tuple of length two")
 
         # From Keras
         if mode not in ["auto", "min", "max"]:
@@ -314,13 +312,12 @@ class WandbCallback(keras.callbacks.Callback):
         elif mode == "max":
             self.monitor_op = operator.gt
             self.best = float("-inf")
+        elif "acc" in self.monitor or self.monitor.startswith("fmeasure"):
+            self.monitor_op = operator.gt
+            self.best = float("-inf")
         else:
-            if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
-                self.monitor_op = operator.gt
-                self.best = float("-inf")
-            else:
-                self.monitor_op = operator.lt
-                self.best = float("inf")
+            self.monitor_op = operator.lt
+            self.best = float("inf")
         # Get the previous best metric for resumed runs
         previous_best = wandb.run.summary.get(
             "%s%s" % (self.log_best_prefix, self.monitor)
@@ -436,7 +433,6 @@ class WandbCallback(keras.callbacks.Callback):
     def on_train_end(self, logs=None):
         if self.log_evaluation:
             wandb.run.summary["results"] = self._log_dataframe()
-        pass
 
     def on_test_begin(self, logs=None):
         pass
@@ -470,8 +466,9 @@ class WandbCallback(keras.callbacks.Callback):
                 # User has named true and false
                 captions = [
                     self.labels[1] if logits[0] > 0.5 else self.labels[0]
-                    for logit in logits
+                    for _ in logits
                 ]
+
             else:
                 if len(self.labels) != 0:
                     wandb.termwarn(
@@ -504,8 +501,7 @@ class WandbCallback(keras.callbacks.Callback):
             if self.class_colors is not None
             else np.array(wandb.util.class_colors(masks[0].shape[2]))
         )
-        imgs = class_colors[np.argmax(masks, axis=-1)]
-        return imgs
+        return class_colors[np.argmax(masks, axis=-1)]
 
     def _log_images(self, num_images=36):
         validation_X = self.validation_data[0]
@@ -633,10 +629,10 @@ class WandbCallback(keras.callbacks.Callback):
                     weights[0]
                 )
             elif len(weights) == 2:
-                metrics["parameters/" + layer.name + ".weights"] = wandb.Histogram(
+                metrics[f'parameters/{layer.name}.weights'] = wandb.Histogram(
                     weights[0]
                 )
-                metrics["parameters/" + layer.name + ".bias"] = wandb.Histogram(
+                metrics[f'parameters/{layer.name}.bias'] = wandb.Histogram(
                     weights[1]
                 )
         return metrics
@@ -691,8 +687,9 @@ class WandbCallback(keras.callbacks.Callback):
 
         for (weight, grad) in zip(weights, grads):
             metrics[
-                "gradients/" + weight.name.split(":")[0] + ".gradient"
+                f'gradients/{weight.name.split(":")[0]}.gradient'
             ] = wandb.Histogram(grad)
+
 
         return metrics
 
@@ -709,7 +706,7 @@ class WandbCallback(keras.callbacks.Callback):
                 )
                 return None
 
-            for i in range(self.validation_steps):
+            for _ in range(self.validation_steps):
                 bx, by_true = next(self.generator)
                 by_pred = self.model.predict(bx)
                 if x is None:

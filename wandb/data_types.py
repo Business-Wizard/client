@@ -35,8 +35,7 @@ from wandb.compat import tempfile
 def _safe_sdk_import():
     """Safely imports sdks respecting python version"""
 
-    PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-    if PY3:
+    if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
         from wandb.sdk import wandb_run
         from wandb.sdk import wandb_artifacts
     else:
@@ -135,21 +134,20 @@ class Histogram(WBValue):
     def __init__(self, sequence=None, np_histogram=None, num_bins=64):
 
         if np_histogram:
-            if len(np_histogram) == 2:
-                self.histogram = (
-                    np_histogram[0].tolist()
-                    if hasattr(np_histogram[0], "tolist")
-                    else np_histogram[0]
-                )
-                self.bins = (
-                    np_histogram[1].tolist()
-                    if hasattr(np_histogram[1], "tolist")
-                    else np_histogram[1]
-                )
-            else:
+            if len(np_histogram) != 2:
                 raise ValueError(
                     "Expected np_histogram to be a tuple of (values, bin_edges) or sequence to be specified"
                 )
+            self.histogram = (
+                np_histogram[0].tolist()
+                if hasattr(np_histogram[0], "tolist")
+                else np_histogram[0]
+            )
+            self.bins = (
+                np_histogram[1].tolist()
+                if hasattr(np_histogram[1], "tolist")
+                else np_histogram[1]
+            )
         else:
             np = util.get_module(
                 "numpy", required="Auto creation of histograms requires numpy"
@@ -249,11 +247,11 @@ class Media(WBValue):
             shutil.move(self._path, new_path)
             self._path = new_path
             self._is_tmp = False
-            _datatypes_callback(media_path)
         else:
             shutil.copy(self._path, new_path)
             self._path = new_path
-            _datatypes_callback(media_path)
+
+        _datatypes_callback(media_path)
 
     @staticmethod
     def get_json_suffix():
@@ -439,9 +437,13 @@ class Table(Media):
                     else:
                         mapped_row.append(v)
                 mapped_data.append(mapped_row)
-            json_dict = {"columns": self.columns, "data": mapped_data}
-            json_dict["ncols"] = len(self.columns)
-            json_dict["nrows"] = len(mapped_data)
+            json_dict = {
+                'columns': self.columns,
+                'data': mapped_data,
+                'ncols': len(self.columns),
+                'nrows': len(mapped_data),
+            }
+
             return json_dict
         else:
             raise ValueError("to_json accepts wandb_run.Run or wandb_artifact.Artifact")
@@ -470,7 +472,7 @@ class Audio(BatchableMedia):
         if isinstance(data_or_path, six.string_types):
             self._set_file(data_or_path, is_tmp=False)
         else:
-            if sample_rate == None:
+            if sample_rate is None:
                 raise ValueError(
                     'Argument "sample_rate" is required when instantiating wandb.Audio with raw data.'
                 )
@@ -516,14 +518,11 @@ class Audio(BatchableMedia):
             "count": len(audio_list),
             "audio": [a.to_json(run) for a in audio_list],
         }
-        sample_rates = cls.sample_rates(audio_list)
-        if sample_rates:
+        if sample_rates := cls.sample_rates(audio_list):
             meta["sampleRates"] = sample_rates
-        durations = cls.durations(audio_list)
-        if durations:
+        if durations := cls.durations(audio_list):
             meta["durations"] = durations
-        captions = cls.captions(audio_list)
-        if captions:
+        if captions := cls.captions(audio_list):
             meta["captions"] = captions
 
         return meta
@@ -587,7 +586,7 @@ class Object3D(BatchableMedia):
             object3D = data_or_path.read()
 
             extension = kwargs.pop("file_type", None)
-            if extension == None:
+            if extension is None:
                 raise ValueError(
                     "Must pass file type keyword argument when using io objects."
                 )
@@ -617,7 +616,6 @@ class Object3D(BatchableMedia):
                 )
 
             self._set_file(data_or_path, is_tmp=False)
-        # Supported different types and scene for 3D scenes
         elif isinstance(data_or_path, dict) and "type" in data_or_path:
             if data_or_path["type"] == "lidar/beta":
                 data = {
@@ -730,7 +728,7 @@ class Molecule(BatchableMedia):
             molecule = data_or_path.read()
 
             extension = kwargs.pop("file_type", None)
-            if extension == None:
+            if extension is None:
                 raise ValueError(
                     "Must pass file type keyword argument when using io objects."
                 )
@@ -834,8 +832,8 @@ class Html(BatchableMedia):
             parts[0] = parts[0] + "<head>"
         elif "<html>" in self.html:
             parts = self.html.split("<html>", 1)
-            parts[0] = parts[0] + "<html><head>"
-            parts[1] = "</head>" + parts[1]
+            parts[0] = f'{parts[0]}<html><head>'
+            parts[1] = f'</head>{parts[1]}'
         else:
             parts = ["", self.html]
         parts.insert(
@@ -858,12 +856,11 @@ class Html(BatchableMedia):
         base_path = os.path.join(run.dir, cls.get_media_subdir())
         util.mkdir_exists_ok(base_path)
 
-        meta = {
+        return {
             "_type": "html",
             "count": len(html_list),
             "html": [h.to_json(run) for h in html_list],
         }
-        return meta
 
 
 class Video(BatchableMedia):
@@ -1006,20 +1003,16 @@ class Video(BatchableMedia):
         base_path = os.path.join(run.dir, cls.get_media_subdir())
         util.mkdir_exists_ok(base_path)
 
-        meta = {
+        return {
             "_type": "videos",
             "count": len(videos),
             "videos": [v.to_json(run) for v in videos],
             "captions": Video.captions(videos),
         }
-        return meta
 
     @classmethod
     def captions(cls, videos):
-        if videos[0]._caption != None:
-            return [v._caption for v in videos]
-        else:
-            return False
+        return [v._caption for v in videos] if videos[0]._caption != None else False
 
 
 class Classes(Media):
@@ -1186,24 +1179,26 @@ class Image(BatchableMedia):
         if boxes:
             if not isinstance(boxes, dict):
                 raise ValueError('Images "boxes" argument must be a dictionary')
-            boxes_final = {}
-            for key in boxes:
-                if isinstance(boxes[key], BoundingBoxes2D):
-                    boxes_final[key] = boxes[key]
-                else:
-                    boxes_final[key] = BoundingBoxes2D(boxes[key], key)
+            boxes_final = {
+                key: boxes[key]
+                if isinstance(boxes[key], BoundingBoxes2D)
+                else BoundingBoxes2D(boxes[key], key)
+                for key in boxes
+            }
+
             self._boxes = boxes_final
 
         self._masks = None
         if masks:
             if not isinstance(masks, dict):
                 raise ValueError('Images "masks" argument must be a dictionary')
-            masks_final = {}
-            for key in masks:
-                if isinstance(masks[key], ImageMask):
-                    masks_final[key] = masks[key]
-                else:
-                    masks_final[key] = ImageMask(masks[key], key)
+            masks_final = {
+                key: masks[key]
+                if isinstance(masks[key], ImageMask)
+                else ImageMask(masks[key], key)
+                for key in masks
+            }
+
             self._masks = masks_final
 
         PILImage = util.get_module(
@@ -1314,11 +1309,12 @@ class Image(BatchableMedia):
         elif isinstance(run_or_artifact, wandb_artifacts.Artifact):
             artifact = run_or_artifact
             json_dict = {}
-            if self._masks != None or self._boxes != None:
-                if self._classes is None:
-                    raise ValueError(
-                        "classes must be passed to wandb.Image which have masks or bounding boxes when adding to artifacts"
-                    )
+            if (
+                self._masks != None or self._boxes != None
+            ) and self._classes is None:
+                raise ValueError(
+                    "classes must be passed to wandb.Image which have masks or bounding boxes when adding to artifacts"
+                )
             if self._classes is not None:
                 # We just put classes in the root.
                 classes_entry = artifact.add(self._classes, "classes.json")
@@ -1433,19 +1429,13 @@ class Image(BatchableMedia):
             "count": num_images_to_log,
         }
 
-        captions = Image.all_captions(images)
-
-        if captions:
+        if captions := Image.all_captions(images):
             meta["captions"] = captions
 
-        all_masks = Image.all_masks(images, run, key, step)
-
-        if all_masks:
+        if all_masks := Image.all_masks(images, run, key, step):
             meta["all_masks"] = all_masks
 
-        all_boxes = Image.all_boxes(images, run, key, step)
-
-        if all_boxes:
+        if all_boxes := Image.all_boxes(images, run, key, step):
             meta["all_boxes"] = all_boxes
 
         return meta
@@ -1462,7 +1452,7 @@ class Image(BatchableMedia):
                 all_mask_groups.append(mask_group)
             else:
                 all_mask_groups.append(None)
-        if all_mask_groups and not all(x is None for x in all_mask_groups):
+        if all_mask_groups and any(x is not None for x in all_mask_groups):
             return all_mask_groups
         else:
             return False
@@ -1479,17 +1469,14 @@ class Image(BatchableMedia):
                 all_box_groups.append(box_group)
             else:
                 all_box_groups.append(None)
-        if all_box_groups and not all(x is None for x in all_box_groups):
+        if all_box_groups and any(x is not None for x in all_box_groups):
             return all_box_groups
         else:
             return False
 
     @classmethod
     def all_captions(cls, images):
-        if images[0]._caption != None:
-            return [i._caption for i in images]
-        else:
-            return False
+        return [i._caption for i in images] if images[0]._caption != None else False
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -1557,7 +1544,7 @@ class BoundingBoxes2D(JSONMetadata):
         self._val = val["box_data"]
         self._key = key
         # Add default class mapping
-        if not "class_labels" in val:
+        if "class_labels" not in val:
             np = util.get_module(
                 "numpy", required="Semantic Segmentation mask support requires numpy"
             )
@@ -1566,7 +1553,7 @@ class BoundingBoxes2D(JSONMetadata):
                 .astype(np.int32)
                 .tolist()
             )
-            class_labels = dict((c, "class_" + str(c)) for c in classes)
+            class_labels = {c: "class_" + str(c) for c in classes}
             self._class_labels = class_labels
         else:
             self._class_labels = val["class_labels"]
@@ -1577,7 +1564,7 @@ class BoundingBoxes2D(JSONMetadata):
         super(BoundingBoxes2D, self).bind_to_run(run, key, step, id_=id_)
         run._add_singleton(
             "bounding_box/class_labels",
-            key + "_wandb_delimeter_" + self._key,
+            f'{key}_wandb_delimeter_{self._key}',
             self._class_labels,
         )
 
@@ -1599,36 +1586,35 @@ class BoundingBoxes2D(JSONMetadata):
         if not isinstance(boxes, collections.Sequence):
             raise TypeError("Boxes must be a list")
 
-        for box in boxes:
-            # Required arguments
-            error_str = "Each box must contain a position with: middle, width, and height or \
+        # Required arguments
+        error_str = "Each box must contain a position with: middle, width, and height or \
                     \nminX, maxX, minY, maxY."
-            if not "position" in box:
+        for box in boxes:
+            if "position" not in box:
                 raise TypeError(error_str)
-            else:
-                valid = False
-                if (
-                    "middle" in box["position"]
-                    and len(box["position"]["middle"]) == 2
-                    and has_num(box["position"], "width")
-                    and has_num(box["position"], "height")
-                ):
-                    valid = True
-                elif (
-                    has_num(box["position"], "minX")
-                    and has_num(box["position"], "maxX")
-                    and has_num(box["position"], "minY")
-                    and has_num(box["position"], "maxY")
-                ):
-                    valid = True
+            valid = False
+            if (
+                "middle" in box["position"]
+                and len(box["position"]["middle"]) == 2
+                and has_num(box["position"], "width")
+                and has_num(box["position"], "height")
+            ):
+                valid = True
+            elif (
+                has_num(box["position"], "minX")
+                and has_num(box["position"], "maxX")
+                and has_num(box["position"], "minY")
+                and has_num(box["position"], "maxY")
+            ):
+                valid = True
 
-                if not valid:
-                    raise TypeError(error_str)
+            if not valid:
+                raise TypeError(error_str)
 
             # Optional arguments
-            if ("scores" in box) and not isinstance(box["scores"], dict):
-                raise TypeError("Box scores must be a dictionary")
-            elif "scores" in box:
+            if "scores" in box:
+                if not isinstance(box["scores"], dict):
+                    raise TypeError("Box scores must be a dictionary")
                 for k, v in list(box["scores"].items()):
                     if not isinstance(k, six.string_types):
                         raise TypeError("A score key must be a string")
@@ -1683,9 +1669,9 @@ class ImageMask(Media):
                 "numpy", required="Semantic Segmentation mask support requires numpy"
             )
             # Add default class mapping
-            if not "class_labels" in val:
+            if "class_labels" not in val:
                 classes = np.unique(val["mask_data"]).astype(np.int32).tolist()
-                class_labels = dict((c, "class_" + str(c)) for c in classes)
+                class_labels = {c: "class_" + str(c) for c in classes}
                 val["class_labels"] = class_labels
 
             self.validate(val)
@@ -1715,7 +1701,7 @@ class ImageMask(Media):
         class_labels = self._val["class_labels"]
 
         run._add_singleton(
-            "mask/class_labels", key + "_wandb_delimeter_" + self._key, class_labels
+            "mask/class_labels", f'{key}_wandb_delimeter_{self._key}', class_labels
         )
 
     def get_media_subdir(self):
@@ -1754,20 +1740,18 @@ class ImageMask(Media):
         np = util.get_module(
             "numpy", required="Semantic Segmentation mask support requires numpy"
         )
-        # 2D Make this work with all tensor(like) types
-        if not "mask_data" in mask:
+        if "mask_data" not in mask:
             raise TypeError(
                 'Missing key "mask_data": A mask requires mask data(A 2D array representing the predctions)'
             )
-        else:
+        shape = mask["mask_data"].shape
+        if len(shape) != 2:
             error_str = "mask_data must be a 2d array"
-            shape = mask["mask_data"].shape
-            if len(shape) != 2:
-                raise TypeError(error_str)
-            if not (
-                (mask["mask_data"] >= 0).all() and (mask["mask_data"] <= 255).all()
-            ) and issubclass(mask["mask_data"].dtype.type, np.integer):
-                raise TypeError("Mask data must be integers between 0 and 255")
+            raise TypeError(error_str)
+        if not (
+            (mask["mask_data"] >= 0).all() and (mask["mask_data"] <= 255).all()
+        ) and issubclass(mask["mask_data"].dtype.type, np.integer):
+            raise TypeError("Mask data must be integers between 0 and 255")
 
         # Optional argument
         if "class_labels" in mask:
@@ -1800,19 +1784,17 @@ class Plotly(Media):
         super(Plotly, self).__init__()
         # First, check to see if the incoming `val` object is a plotfly figure
         if not util.is_plotly_figure_typename(util.get_full_typename(val)):
-            # If it is not, but it is a matplotlib figure, then attempt to convert it to plotly
-            if util.is_matplotlib_typename(util.get_full_typename(val)):
-                if util.matplotlib_contains_images(val):
-                    raise ValueError(
-                        "Plotly does not currently support converting matplotlib figures containing images. \
-                            You can convert the plot to a static image with `wandb.Image(plt)` "
-                    )
-                val = util.matplotlib_to_plotly(val)
-            else:
+            if not util.is_matplotlib_typename(util.get_full_typename(val)):
                 raise ValueError(
                     "Logged plots must be plotly figures, or matplotlib plots convertible to plotly via mpl_to_plotly"
                 )
 
+            if util.matplotlib_contains_images(val):
+                raise ValueError(
+                    "Plotly does not currently support converting matplotlib figures containing images. \
+                            You can convert the plot to a static image with `wandb.Image(plt)` "
+                )
+            val = util.matplotlib_to_plotly(val)
         tmp_path = os.path.join(MEDIA_TMP.name, util.generate_id() + ".plotly.json")
         val = numpy_arrays_to_lists(val.to_plotly_json())
         util.json_dump_safer(val, codecs.open(tmp_path, "w", encoding="utf-8"))
@@ -1920,16 +1902,12 @@ class Graph(Media):
     @classmethod
     def from_keras(cls, model):
         graph = cls()
+        sequential_like = True
         # Shamelessly copied from keras/keras/utils/layer_utils.py
 
         if model.__class__.__name__ == "Sequential":
-            sequential_like = True
-        elif not hasattr(model, "_is_graph_network") or not model._is_graph_network:
-            # We treat subclassed models as a simple sequence of layers,
-            # for logging purposes.
-            sequential_like = True
-        else:
-            sequential_like = True
+            pass
+        elif hasattr(model, "_is_graph_network") and model._is_graph_network:
             nodes_by_depth = model._nodes_by_depth.values()
             nodes = []
             for v in nodes_by_depth:
@@ -2216,10 +2194,7 @@ class Edge(WBValue):
 
 
 def nest(thing):
-    # Use tensorflows nest function if available, otherwise just wrap object in an array"""
-
-    tfutil = util.get_module("tensorflow.python.util")
-    if tfutil:
+    if tfutil := util.get_module("tensorflow.python.util"):
         return tfutil.nest.flatten(thing)
     else:
         return [thing]
@@ -2247,10 +2222,7 @@ def numpy_arrays_to_lists(payload):
     # Casts all numpy arrays to lists so we don't convert them to histograms, primarily for Plotly
 
     if isinstance(payload, dict):
-        res = {}
-        for key, val in six.iteritems(payload):
-            res[key] = numpy_arrays_to_lists(val)
-        return res
+        return {key: numpy_arrays_to_lists(val) for key, val in six.iteritems(payload)}
     elif isinstance(payload, collections.Sequence) and not isinstance(
         payload, six.string_types
     ):
@@ -2275,7 +2247,7 @@ def prune_max_seq(seq):
 
 def val_to_json(run, key, val, namespace=None):
     # Converts a wandb datatype to its JSON representation.
-    if namespace == None:
+    if namespace is None:
         raise ValueError(
             "val_to_json must be called with a namespace(a step number, or 'summary') argument"
         )
@@ -2291,19 +2263,11 @@ def val_to_json(run, key, val, namespace=None):
     elif isinstance(val, collections.Sequence) and all(
         isinstance(v, WBValue) for v in val
     ):
-        # This check will break down if Image/Audio/... have child classes.
         if (
-            len(val)
-            and isinstance(val[0], BatchableMedia)
-            and all(isinstance(v, type(val[0])) for v in val)
+            not len(val)
+            or not isinstance(val[0], BatchableMedia)
+            or not all(isinstance(v, type(val[0])) for v in val)
         ):
-            items = prune_max_seq(val)
-
-            for i, item in enumerate(items):
-                item.bind_to_run(run, key, namespace, id_=i)
-
-            return items[0].seq_to_json(items, run, key, namespace)
-        else:
             # TODO(adrian): Good idea to pass on the same key here? Maybe include
             # the array index?
             # There is a bug here: if this array contains two arrays of the same type of
@@ -2313,6 +2277,12 @@ def val_to_json(run, key, val, namespace=None):
             #    "Mixed media types in the same list aren't supported")
             return [val_to_json(run, key, v, namespace=namespace) for v in val]
 
+        items = prune_max_seq(val)
+
+        for i, item in enumerate(items):
+            item.bind_to_run(run, key, namespace, id_=i)
+
+        return items[0].seq_to_json(items, run, key, namespace)
     if isinstance(val, WBValue):
         if isinstance(val, Media) and not val.is_bound():
             val.bind_to_run(run, key, namespace)
@@ -2368,7 +2338,7 @@ def data_frame_to_json(df, run, key, step):
         missing_reqs.append("pandas")
     if not fastparquet:
         missing_reqs.append("fastparquet")
-    if len(missing_reqs) > 0:
+    if missing_reqs:
         raise wandb.Error(
             "Failed to save data frame. Please run 'pip install %s'"
             % " ".join(missing_reqs)

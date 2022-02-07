@@ -114,11 +114,9 @@ def _pipe_relay(stopped, fd, name, cb, tee, output_writer):
             return
         if len(data) == 0:
             break
-        if stopped.isSet():
-            # TODO(jhr): Is this going to capture all timings?
-            if data.endswith(_LAST_WRITE_TOKEN.encode()):
-                logger.info("relay done saw last write: %s", name)
-                break
+        if stopped.isSet() and data.endswith(_LAST_WRITE_TOKEN.encode()):
+            logger.info("relay done saw last write: %s", name)
+            break
         if tee:
             os.write(tee, data)
         if output_writer:
@@ -148,17 +146,17 @@ class Redirect(object):
         self._old_fp = None
 
         _src = getattr(sys, src)
-        if _src != getattr(sys, "__%s__" % src):
-            if hasattr(_src, "fileno"):
-                try:
-                    _src.fileno()
-                    self._io_wrapped = False
-                except io.UnsupportedOperation:
-                    self._io_wrapped = True
-            else:
+        if _src == getattr(sys, "__%s__" % src):
+            self._io_wrapped = False
+
+        elif hasattr(_src, "fileno"):
+            try:
+                _src.fileno()
+                self._io_wrapped = False
+            except io.UnsupportedOperation:
                 self._io_wrapped = True
         else:
-            self._io_wrapped = False
+            self._io_wrapped = True
 
     def _redirect(self, to_fd, unbuffered=False, close=False):
         if close:

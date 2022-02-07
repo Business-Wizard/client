@@ -51,9 +51,7 @@ def _group_challenges(tokens):
     challenges = []
     while tokens:
         j = 1
-        if len(tokens) == 1:
-            pass
-        elif tokens[1][0] == "comma":
+        if len(tokens) == 1 or tokens[1][0] == "comma":
             pass
         elif tokens[1][0] == "token":
             j = 2
@@ -70,8 +68,7 @@ def parse(value):
     tokens = []
     while value:
         for token_name, pattern in _tokens:
-            match = pattern.match(value)
-            if match:
+            if match := pattern.match(value):
                 value = value[match.end() :]
                 if token_name:
                     tokens.append((token_name, match.group(1)))

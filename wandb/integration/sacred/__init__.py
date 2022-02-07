@@ -68,29 +68,30 @@ class WandbObserver(RunObserver):
         self.__update_config(config)
 
     def completed_event(self, stop_time, result):
-        if result:
-            if not isinstance(result, tuple):
-                result = (
-                    result,
-                )  # transform single result to tuple so that both single & multiple results use same code
+        if not result:
+            return
+        if not isinstance(result, tuple):
+            result = (
+                result,
+            )  # transform single result to tuple so that both single & multiple results use same code
 
-            for i, r in enumerate(result):
-                if isinstance(r, float) or isinstance(r, int):
-                    wandb.log({"result_{}".format(i): float(r)})
-                elif isinstance(r, dict):
-                    wandb.log(r)
-                elif isinstance(r, object):
-                    artifact = wandb.Artifact("result_{}.pkl".format(i), type="result")
-                    artifact.add_file(r)
-                    self.run.log_artifact(artifact)
-                elif isinstance(r, numpy.ndarray):
-                    wandb.log({"result_{}".format(i): wandb.Image(r)})
-                else:
-                    warnings.warn(
-                        "logging results does not support type '{}' results. Ignoring this result".format(
-                            type(r)
-                        )
+        for i, r in enumerate(result):
+            if isinstance(r, (float, int)):
+                wandb.log({"result_{}".format(i): float(r)})
+            elif isinstance(r, dict):
+                wandb.log(r)
+            elif isinstance(r, object):
+                artifact = wandb.Artifact("result_{}.pkl".format(i), type="result")
+                artifact.add_file(r)
+                self.run.log_artifact(artifact)
+            elif isinstance(r, numpy.ndarray):
+                wandb.log({"result_{}".format(i): wandb.Image(r)})
+            else:
+                warnings.warn(
+                    "logging results does not support type '{}' results. Ignoring this result".format(
+                        type(r)
                     )
+                )
 
     def artifact_event(self, name, filename, metadata=None, content_type=None):
         if content_type is None:

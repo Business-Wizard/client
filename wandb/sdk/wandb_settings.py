@@ -100,7 +100,7 @@ env_convert: Dict[str, Callable[[str], List[str]]] = dict(
 
 
 def _build_inverse_map(prefix: str, d: Dict[str, str]) -> Dict[str, str]:
-    inv_map = dict()
+    inv_map = {}
     for k, v in six.iteritems(d):
         v = v or prefix + k.upper()
         inv_map[v] = k
@@ -119,8 +119,7 @@ def _error_choices(value: str, choices: Set[str]) -> str:
 
 
 def _get_program():
-    program = os.getenv(wandb.env.PROGRAM)
-    if program:
+    if program := os.getenv(wandb.env.PROGRAM):
         return program
 
     try:
@@ -165,7 +164,7 @@ def get_wandb_dir(root_dir: str):
     path = os.path.join(root_dir, __stage_dir__)
     if not os.access(root_dir or ".", os.W_OK):
         wandb.termwarn("Path %s wasn't writable, using system temp directory" % path)
-        path = os.path.join(tempfile.gettempdir(), __stage_dir__ or ("wandb" + os.sep))
+        path = os.path.join(tempfile.gettempdir(), __stage_dir__ or f'wandb{os.sep}')
 
     return path
 
@@ -377,27 +376,19 @@ class Settings(object):
 
     @property
     def _silent(self) -> Optional[bool]:
-        if not self.silent:
-            return None
-        return _str_as_bool(self.silent)
+        return None if not self.silent else _str_as_bool(self.silent)
 
     @property
     def _show_info(self) -> Optional[bool]:
-        if not self.show_info:
-            return None
-        return _str_as_bool(self.show_info)
+        return None if not self.show_info else _str_as_bool(self.show_info)
 
     @property
     def _show_warnings(self) -> Optional[bool]:
-        if not self.show_warnings:
-            return None
-        return _str_as_bool(self.show_warnings)
+        return None if not self.show_warnings else _str_as_bool(self.show_warnings)
 
     @property
     def _show_errors(self) -> Optional[bool]:
-        if not self.show_errors:
-            return None
-        return _str_as_bool(self.show_errors)
+        return None if not self.show_errors else _str_as_bool(self.show_errors)
 
     @property
     def _noop(self) -> bool:
@@ -424,35 +415,11 @@ class Settings(object):
         )
         console: str = self.console
         if console == "auto":
-            if self._jupyter:
+            if self._jupyter or self._windows:
                 console = "wrap"
-            elif self._windows:
-                console = "wrap"
-                # legacy_env_var = "PYTHONLEGACYWINDOWSSTDIO"
-                # if sys.version_info >= (3, 6) and legacy_env_var not in os.environ:
-                #     msg = (
-                #         "Set %s environment variable to enable"
-                #         " proper console logging on Windows. Falling "
-                #         "back to wrapping stdout/err." % legacy_env_var
-                #     )
-                #     wandb.termwarn(msg)
-                #     logger.info(msg)
-                #     console = "wrap"
-                # if "tensorflow" in sys.modules:
-                #     msg = (
-                #         "Tensorflow detected. Stream redirection is not supported "
-                #         "on Windows when tensorflow is imported. Falling back to "
-                #         "wrapping stdout/err."
-                #     )
-                #     wandb.termlog(msg)
-                #     logger.info(msg)
-                #     console = "wrap"
-                # else:
-                #     console = "redirect"
             else:
                 console = "redirect"
-        convert: SettingsConsole = convert_dict[console]
-        return convert
+        return convert_dict[console]
 
     @property
     def resume_fname(self) -> str:
@@ -581,19 +548,16 @@ class Settings(object):
 
     def _apply_environ(self, environ, _logger=None):
         inv_map = _build_inverse_map(env_prefix, env_settings)
-        env_dict = dict()
+        env_dict = {}
         for k, v in six.iteritems(environ):
             if not k.startswith(env_prefix):
                 continue
-            setting_key = inv_map.get(k)
-            if setting_key:
-                conv = env_convert.get(setting_key, None)
-                if conv:
+            if setting_key := inv_map.get(k):
+                if conv := env_convert.get(setting_key, None):
                     v = conv(v)
                 env_dict[setting_key] = v
-            else:
-                if _logger:
-                    _logger.info("Unhandled environment var: {}".format(k))
+            elif _logger:
+                _logger.info("Unhandled environment var: {}".format(k))
 
         if _logger:
             _logger.info("setting env: {}".format(env_dict))
@@ -623,7 +587,7 @@ class Settings(object):
     def _path_convert(self, *path):
         """convert slashes, expand ~ and other macros."""
 
-        format_dict = dict()
+        format_dict = {}
         if self._start_time:
             format_dict["timespec"] = datetime.strftime(
                 self._start_datetime, "%Y%m%d_%H%M%S"
@@ -667,11 +631,10 @@ class Settings(object):
     def _check_invalid(self, k, v):
         if v is None:
             return
-        f = getattr(self, "_validate_" + k, None)
+        f = getattr(self, f'_validate_{k}', None)
         if not f or not callable(f):
             return
-        invalid = f(v)
-        if invalid:
+        if invalid := f(v):
             raise TypeError("Settings field {}: {}".format(k, invalid))
 
     def _update(self, __d=None, _source=None, _override=None, **kwargs):
@@ -711,7 +674,7 @@ class Settings(object):
             return False
         if key_override and not override:
             return True
-        if key_override and override and source > key_source:
+        if key_override and source > key_source:
             return True
         if not override and source < key_source:
             return True
@@ -720,9 +683,7 @@ class Settings(object):
     def _infer_settings_from_env(self):
         """Modify settings based on environment (for runs and cli)."""
 
-        d = {}
-        # disable symlinks if on windows (requires admin or developer setup)
-        d["symlink"] = True
+        d = {'symlink': True}
         if self._windows:
             d["symlink"] = False
         self.setdefaults(d)
@@ -779,9 +740,7 @@ class Settings(object):
             self.update(dict(program="<code saving explicitly disabled>"))
             return
 
-        # If there's not already a program file, infer it now.
-        program = self.program or _get_program()
-        if program:
+        if program := self.program or _get_program():
             program_relpath = self.program_relpath or _get_program_relpath_from_gitrepo(
                 program, _logger=_logger
             )
@@ -794,9 +753,8 @@ class Settings(object):
         __d = __d or defaults
         # set defaults
         for k, v in __d.items():
-            if not k.startswith("_"):
-                if self.__dict__.get(k) is None:
-                    object.__setattr__(self, k, v)
+            if not k.startswith("_") and self.__dict__.get(k) is None:
+                object.__setattr__(self, k, v)
 
     def save(self, fname):
         pass
@@ -827,9 +785,9 @@ class Settings(object):
     @classmethod
     def _get_class_defaults(cls):
         class_keys = set(cls._class_keys())
-        return dict(
-            (k, v) for k, v in vars(cls).items() if k in class_keys and v is not None
-        )
+        return {
+            k: v for k, v in vars(cls).items() if k in class_keys and v is not None
+        }
 
     def _public_keys(self):
         return filter(lambda x: not x.startswith("_Settings__"), self.__dict__)
@@ -855,7 +813,7 @@ class Settings(object):
         cp = configparser.ConfigParser()
         cp.add_section(section)
         cp.read(fname)
-        d = dict()
+        d = {}
         for k in cp[section]:
             d[k] = cp[section][k]
             # TODO (cvp): we didn't do this in the old cli, but it seems necessary
@@ -879,8 +837,7 @@ class Settings(object):
         # TODO(jhr): these should be locked elements in the future
         if self.sweep_id:
             for key in ("project", "entity"):
-                val = args.pop(key, None)
-                if val:
+                if val := args.pop(key, None):
                     wandb.termwarn(
                         "Ignored wandb.init() arg %s when running a sweep" % key
                     )
@@ -911,17 +868,16 @@ class Settings(object):
         self._update(args, _source=self.Source.INIT)
 
         # handle auto resume logic
-        if self.resume == "auto":
-            if os.path.exists(self.resume_fname):
-                with open(self.resume_fname) as f:
-                    resume_run_id = json.load(f)["run_id"]
-                if self.run_id is None:
-                    self.run_id = resume_run_id
-                else:
-                    wandb.termwarn(
-                        "Tried to auto resume run with id %s but id %s is set."
-                        % (resume_run_id, self.run_id)
-                    )
+        if self.resume == "auto" and os.path.exists(self.resume_fname):
+            with open(self.resume_fname) as f:
+                resume_run_id = json.load(f)["run_id"]
+            if self.run_id is None:
+                self.run_id = resume_run_id
+            else:
+                wandb.termwarn(
+                    "Tried to auto resume run with id %s but id %s is set."
+                    % (resume_run_id, self.run_id)
+                )
         self.run_id = self.run_id or generate_id()
         # persist our run id incase of failure
         if self.resume == "auto":

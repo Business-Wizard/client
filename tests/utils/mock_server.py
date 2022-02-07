@@ -137,10 +137,8 @@ def artifact(ctx, collection_name="mnist"):
 
 
 def paginated(node, ctx, extra={}):
-    next_page = False
     ctx["page_count"] += 1
-    if ctx["page_count"] < ctx["page_times"]:
-        next_page = True
+    next_page = ctx["page_count"] < ctx["page_times"]
     edge = {"node": node, "cursor": "abc123"}
     edge.update(extra)
     return {
@@ -177,10 +175,7 @@ class CTX(object):
     @classmethod
     def load(cls, default):
         with cls.lock:
-            if cls.STATE is not None:
-                return CTX(cls.STATE)
-            else:
-                return CTX(default)
+            return CTX(cls.STATE) if cls.STATE is not None else CTX(default)
 
 
 def get_ctx():
@@ -210,7 +205,7 @@ def _bucket_config():
                 },
                 {
                     "node": {
-                        "directUrl": request.url_root + "/storage?file=diff.patch",
+                        "directUrl": f'{request.url_root}/storage?file=diff.patch',
                         "name": "diff.patch",
                     }
                 },
@@ -255,10 +250,12 @@ def create_app(user_ctx=None):
         ctx = get_ctx()
         test_name = request.headers.get("X-WANDB-USERNAME")
         app.logger.info("Test request from: %s", test_name)
-        if "fail_graphql_times" in ctx:
-            if ctx["fail_graphql_count"] < ctx["fail_graphql_times"]:
-                ctx["fail_graphql_count"] += 1
-                return json.dumps({"errors": ["Server down"]}), 500
+        if (
+            "fail_graphql_times" in ctx
+            and ctx["fail_graphql_count"] < ctx["fail_graphql_times"]
+        ):
+            ctx["fail_graphql_count"] += 1
+            return json.dumps({"errors": ["Server down"]}), 500
         body = request.get_json()
         if body["variables"].get("run"):
             ctx["current_run"] = body["variables"]["run"]
@@ -290,30 +287,29 @@ def create_app(user_ctx=None):
                 }
             )
         if "historyTail" in body["query"]:
-            if ctx["resume"] is True:
-                hist_tail = '["{\\"_step\\": 15, \\"acc\\": 1, \\"_runtime\\": 60}"]'
-                return json.dumps(
-                    {
-                        "data": {
-                            "model": {
-                                "bucket": {
-                                    "name": "test",
-                                    "displayName": "funky-town-13",
-                                    "id": "test",
-                                    "config": '{"epochs": {"value": 10}}',
-                                    "summaryMetrics": '{"acc": 10, "best_val_loss": 0.5}',
-                                    "logLineCount": 14,
-                                    "historyLineCount": 15,
-                                    "eventsLineCount": 0,
-                                    "historyTail": hist_tail,
-                                    "eventsTail": '["{\\"_runtime\\": 70}"]',
-                                }
+            if ctx["resume"] is not True:
+                return json.dumps({"data": {"model": {"bucket": None}}})
+            hist_tail = '["{\\"_step\\": 15, \\"acc\\": 1, \\"_runtime\\": 60}"]'
+            return json.dumps(
+                {
+                    "data": {
+                        "model": {
+                            "bucket": {
+                                "name": "test",
+                                "displayName": "funky-town-13",
+                                "id": "test",
+                                "config": '{"epochs": {"value": 10}}',
+                                "summaryMetrics": '{"acc": 10, "best_val_loss": 0.5}',
+                                "logLineCount": 14,
+                                "historyLineCount": 15,
+                                "eventsLineCount": 0,
+                                "historyTail": hist_tail,
+                                "eventsTail": '["{\\"_runtime\\": 70}"]',
                             }
                         }
                     }
-                )
-            else:
-                return json.dumps({"data": {"model": {"bucket": None}}})
+                }
+            )
         if "query Runs(" in body["query"]:
             return json.dumps(
                 {
@@ -335,10 +331,7 @@ def create_app(user_ctx=None):
             else:
                 project_field_name = "model"
                 run_field_name = "bucket"
-            if "commit" in body["query"]:
-                run_config = _bucket_config()
-            else:
-                run_config = run(ctx)
+            run_config = _bucket_config() if "commit" in body["query"] else run(ctx)
             return json.dumps(
                 {"data": {project_field_name: {run_field_name: run_config}}}
             )
@@ -588,9 +581,10 @@ def create_app(user_ctx=None):
                 "id": 1,
                 "file": {
                     "id": 1,
-                    "directUrl": request.url_root + "/storage?file=wandb_manifest.json",
+                    "directUrl": f'{request.url_root}/storage?file=wandb_manifest.json',
                 },
             }
+
             return {"data": {"project": {"artifact": art}}}
         if "stopped" in body["query"]:
             return json.dumps(
@@ -609,10 +603,12 @@ def create_app(user_ctx=None):
     @app.route("/storage", methods=["PUT", "GET"])
     def storage():
         ctx = get_ctx()
-        if "fail_storage_times" in ctx:
-            if ctx["fail_storage_count"] < ctx["fail_storage_times"]:
-                ctx["fail_storage_count"] += 1
-                return json.dumps({"errors": ["Server down"]}), 500
+        if (
+            "fail_storage_times" in ctx
+            and ctx["fail_storage_count"] < ctx["fail_storage_times"]
+        ):
+            ctx["fail_storage_count"] += 1
+            return json.dumps({"errors": ["Server down"]}), 500
         file = request.args.get("file")
         run = request.args.get("run", "unknown")
         ctx["storage"] = ctx.get("storage", {})
@@ -671,10 +667,7 @@ index 30d74d2..9a2c773 100644
         ctx = get_ctx()
         image_id = b"docker-pullable://test@sha256:1234"
         ms = b'{"status":{"containerStatuses":[{"imageID":"%s"}]}}' % image_id
-        if ctx.get("k8s"):
-            return ms, 200
-        else:
-            return b"", 500
+        return (ms, 200) if ctx.get("k8s") else (b"", 500)
 
     @app.route("/pypi/<library>/json")
     def pypi(library):

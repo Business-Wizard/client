@@ -70,10 +70,10 @@ def roc(
             count = 0
 
             for i, to_plot in enumerate(indices_to_plot):
-                fpr_dict[i], tpr_dict[i], _ = roc_curve(
-                    y_true, probas[:, i], pos_label=classes[i]
-                )
                 if to_plot:
+                    fpr_dict[i], tpr_dict[i], _ = roc_curve(
+                        y_true, probas[:, i], pos_label=classes[i]
+                    )
                     roc_auc = auc(fpr_dict[i], tpr_dict[i])
                     for j in range(len(fpr_dict[i])):
                         if labels is not None and (

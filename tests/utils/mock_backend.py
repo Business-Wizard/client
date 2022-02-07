@@ -7,9 +7,7 @@ from _pytest.config import get_config  # type: ignore
 from pytest_mock import _get_mock_module  # type: ignore
 from wandb.proto import wandb_internal_pb2  # type: ignore
 
-# TODO: consolidate dynamic imports
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     from wandb.sdk.interface import interface
 else:
     from wandb.sdk_py27.interface import interface
@@ -74,10 +72,7 @@ class BackendMock(object):
         return resp
 
     def _proto_to_dict(self, obj_list):
-        d = dict()
-        for item in obj_list:
-            d[item.key] = json.loads(item.value_json)
-        return d
+        return {item.key: json.loads(item.value_json) for item in obj_list}
 
     def _publish(self, rec):
         if len(rec.history.item) > 0:
@@ -91,9 +86,6 @@ class BackendMock(object):
                 fpolicy = k.policy
                 # TODO(jhr): fix paths with directories
                 self.files[fpath] = fpolicy
-        if rec.run:
-            pass
-
         self.last_queued = rec
         self.interface._orig_publish(rec)
 

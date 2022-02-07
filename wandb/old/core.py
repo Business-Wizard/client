@@ -4,6 +4,7 @@ module but are also used in modules that import the wandb module.
 The purpose of this module is to break circular imports.
 """
 
+
 import os
 import string
 import sys
@@ -19,7 +20,7 @@ from wandb import env
 if os.path.exists(os.path.join(env.get_dir(os.getcwd()), '.wandb')):
     __stage_dir__ = '.wandb' + os.sep
 elif os.path.exists(os.path.join(env.get_dir(os.getcwd()), 'wandb')):
-    __stage_dir__ = "wandb" + os.sep
+    __stage_dir__ = f'wandb{os.sep}'
 else:
     __stage_dir__ = None
 
@@ -35,7 +36,7 @@ def wandb_dir(root_dir=None):
     path = os.path.join(root_dir, __stage_dir__ or ("wandb" + os.sep))
     if not os.access(root_dir, os.W_OK):
         termwarn("Path %s wasn't writable, using system temp directory" % path)
-        path = os.path.join(tempfile.gettempdir(), __stage_dir__ or ("wandb" + os.sep))
+        path = os.path.join(tempfile.gettempdir(), __stage_dir__ or f'wandb{os.sep}')
     return path
 
 

@@ -11,10 +11,7 @@ if wandb.TYPE_CHECKING:  # type: ignore
 
 
 def _get_dict(d):
-    if isinstance(d, dict):
-        return d
-    # assume argparse Namespace
-    return vars(d)
+    return d if isinstance(d, dict) else vars(d)
 
 
 @six.add_metaclass(abc.ABCMeta)

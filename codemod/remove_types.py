@@ -19,8 +19,10 @@ class RemoveTypesTransformer(codemod.VisitorBasedCodemodCommand):
         if updated_node.value is None:
             # Annotate assignments so they can be commented out by a second pass
             return updated_node.with_changes(
-                    target=cst.Name("__COMMENT__" + original_node.target.value))
-            # return cst.RemoveFromParent()
+                target=cst.Name(f'__COMMENT__{original_node.target.value}')
+            )
+
+                # return cst.RemoveFromParent()
 
         return cst.Assign(
             targets=[cst.AssignTarget(target=updated_node.target)],

@@ -54,10 +54,10 @@ def test_artifact_add_reference_via_url():
     middle_artifact_path = "middle/artifact/path/"
     downstream_artifact_path = "downstream/artifact/path/"
 
-    upstream_local_file_path = upstream_local_path + "file.txt"
-    upstream_artifact_file_path = upstream_artifact_path + "file.txt"
-    middle_artifact_file_path = middle_artifact_path + "file.txt"
-    downstream_artifact_file_path = downstream_artifact_path + "file.txt"
+    upstream_local_file_path = f'{upstream_local_path}file.txt'
+    upstream_artifact_file_path = f'{upstream_artifact_path}file.txt'
+    middle_artifact_file_path = f'{middle_artifact_path}file.txt'
+    downstream_artifact_file_path = f'{downstream_artifact_path}file.txt'
 
     file_text = "Luke, I am your Father!!!!!"
     # Create a super important file
@@ -74,7 +74,7 @@ def test_artifact_add_reference_via_url():
     # Create an middle artifact with such file referenced (notice no need to download)
     with wandb.init(project=PROJECT_NAME) as run:
         artifact = wandb.Artifact(middle_artifact_name, "database")
-        upstream_artifact = run.use_artifact(upstream_artifact_name + ":latest")
+        upstream_artifact = run.use_artifact(f'{upstream_artifact_name}:latest')
         artifact.add_reference(
             "wandb-artifact://{}/{}".format(_b64_to_hex_id(upstream_artifact.id),str(upstream_artifact_file_path)),
             middle_artifact_file_path,
@@ -84,7 +84,7 @@ def test_artifact_add_reference_via_url():
     # Create a downstream artifact that is referencing the middle's reference
     with wandb.init(project=PROJECT_NAME) as run:
         artifact = wandb.Artifact(downstream_artifact_name, "database")
-        middle_artifact = run.use_artifact(middle_artifact_name + ":latest")
+        middle_artifact = run.use_artifact(f'{middle_artifact_name}:latest')
         artifact.add_reference(
             "wandb-artifact://{}/{}".format(_b64_to_hex_id(middle_artifact.id),str(middle_artifact_file_path)),
             downstream_artifact_file_path,
@@ -99,7 +99,7 @@ def test_artifact_add_reference_via_url():
 
     # Finally, use the artifact (download it) and enforce that the file is where we want it!
     with wandb.init(project=PROJECT_NAME) as run:
-        downstream_artifact = run.use_artifact(downstream_artifact_name + ":latest")
+        downstream_artifact = run.use_artifact(f'{downstream_artifact_name}:latest')
         downstream_path = downstream_artifact.download()
         assert os.path.islink(
             os.path.join(downstream_path, downstream_artifact_file_path)
@@ -126,10 +126,10 @@ def test_add_reference_via_artifact_entry():
     middle_artifact_path = "middle/artifact/path/"
     downstream_artifact_path = "downstream/artifact/path/"
 
-    upstream_local_file_path = upstream_local_path + "file.txt"
-    upstream_artifact_file_path = upstream_artifact_path + "file.txt"
-    middle_artifact_file_path = middle_artifact_path + "file.txt"
-    downstream_artifact_file_path = downstream_artifact_path + "file.txt"
+    upstream_local_file_path = f'{upstream_local_path}file.txt'
+    upstream_artifact_file_path = f'{upstream_artifact_path}file.txt'
+    middle_artifact_file_path = f'{middle_artifact_path}file.txt'
+    downstream_artifact_file_path = f'{downstream_artifact_path}file.txt'
 
     file_text = "Luke, I am your Father!!!!!"
     # Create a super important file
@@ -146,7 +146,7 @@ def test_add_reference_via_artifact_entry():
     # Create an middle artifact with such file referenced (notice no need to download)
     with wandb.init(project=PROJECT_NAME) as run:
         artifact = wandb.Artifact(middle_artifact_name, "database")
-        upstream_artifact = run.use_artifact(upstream_artifact_name + ":latest")
+        upstream_artifact = run.use_artifact(f'{upstream_artifact_name}:latest')
         artifact.add_reference(
             upstream_artifact.get_path(upstream_artifact_file_path),
             middle_artifact_file_path,
@@ -156,7 +156,7 @@ def test_add_reference_via_artifact_entry():
     # Create a downstream artifact that is referencing the middle's reference
     with wandb.init(project=PROJECT_NAME) as run:
         artifact = wandb.Artifact(downstream_artifact_name, "database")
-        middle_artifact = run.use_artifact(middle_artifact_name + ":latest")
+        middle_artifact = run.use_artifact(f'{middle_artifact_name}:latest')
         artifact.add_reference(
             middle_artifact.get_path(middle_artifact_file_path),
             downstream_artifact_file_path,
@@ -171,7 +171,7 @@ def test_add_reference_via_artifact_entry():
 
     # Finally, use the artifact (download it) and enforce that the file is where we want it!
     with wandb.init(project=PROJECT_NAME) as run:
-        downstream_artifact = run.use_artifact(downstream_artifact_name + ":latest")
+        downstream_artifact = run.use_artifact(f'{downstream_artifact_name}:latest')
         downstream_path = downstream_artifact.download()
         downstream_path = downstream_artifact.download() # should not fail on second download.
         assert os.path.islink(

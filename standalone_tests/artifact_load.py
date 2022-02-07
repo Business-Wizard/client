@@ -84,8 +84,7 @@ def gen_files(n_files, max_small_size, max_large_size):
         fname = os.path.join(full_dir, '%s.txt' % i)
         fnames.append(fname)
         with open(fname, 'w') as f:
-            small = random.random() < 0.5
-            if small:
+            if small := random.random() < 0.5:
                 size = int(random.random() * max_small_size)
             else:
                 size = int(random.random() * max_large_size)
@@ -126,7 +125,7 @@ def proc_version_reader(stop_queue, stats_queue, project_name, artifact_name, re
             pass
         versions = api.artifact_versions('dataset', artifact_name)
         versions = [v for v in versions if v.state == 'COMMITTED']
-        if len(versions) == 0:
+        if not versions:
             time.sleep(5)
             continue
         version = random.choice(versions)
@@ -281,7 +280,7 @@ def main(argv):
         procs.append(p)
 
     # deleters
-    for i in range(args.num_deleters):
+    for _ in range(args.num_deleters):
         p = multiprocessing.Process(
             target=proc_version_deleter,
             args=(
@@ -304,7 +303,7 @@ def main(argv):
                 args.cache_gc_period_max))
         p.start()
         procs.append(p)
-    
+
     # reset environment
     os.environ['WANDB_ENTITY'] = settings_entity
     os.environ['WANDB_BASE_URL'] = settings_base_url
@@ -342,7 +341,7 @@ def main(argv):
 
     print('Test phase time expired')
     # stop all processes and wait til all are done
-    for i in range(len(procs)):
+    for _ in procs:
         stop_queue.put(True)
     print('Waiting for processes to stop')
     fail = False
@@ -373,7 +372,7 @@ def main(argv):
         print('Test phase successfully completed')
 
     print('Starting verification phase')
-    
+
     os.environ['WANDB_ENTITY'] = (os.environ.get('LOAD_TEST_ENTITY') or settings_entity)
     os.environ['WANDB_PROJECT'] = project_name
     os.environ['WANDB_BASE_URL'] = (os.environ.get('LOAD_TEST_BASE_URL') or settings_base_url)
@@ -383,10 +382,10 @@ def main(argv):
     for run in data_api.runs('%s/%s' % (api.settings('entity'), project_name)):
         for v in run.logged_artifacts():
             # TODO: allow deleted once we build deletion support
-            if v.state != 'COMMITTED' and v.state != 'DELETED':
+            if v.state not in ['COMMITTED', 'DELETED']:
                 print('FAIL! Artifact version not committed or deleted: %s' % v)
                 sys.exit(1)
-    
+
     print('Verification succeeded')
 
 

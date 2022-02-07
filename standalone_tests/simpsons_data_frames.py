@@ -88,7 +88,7 @@ def results_data_frame(test_datagen, model):
     true_probs = []
     pred_classes = []
     pred_probs = []
-    class_probs = [[] for c in class_names]
+    class_probs = [[] for _ in class_names]
 
     num_batches = int(math.ceil(len(gen.filenames) / float(gen.batch_size)))
     #num_batches = 1
@@ -107,13 +107,21 @@ def results_data_frame(test_datagen, model):
 
         base_i = batch_i * gen.batch_size
 
-        for i in range(base_i, base_i + len(examples)):
-            cards.append('''```Predicted:  
+        cards.extend(
+            '''```Predicted:  
 {pred_class} ({pred_prob:.2%})  
 Actual:  
 {true_class} ({true_prob:.2%})  
 ![](https://api.wandb.ai/adrianbg/simpsons/tgw7wnqj/simpsons/{idx}.jpg)
-```'''.format(true_class=true_classes[i], true_prob=true_probs[i], pred_class=pred_classes[i], pred_prob=pred_probs[i], idx=i))
+```'''.format(
+                true_class=true_classes[i],
+                true_prob=true_probs[i],
+                pred_class=pred_classes[i],
+                pred_prob=pred_probs[i],
+                idx=i,
+            )
+            for i in range(base_i, base_i + len(examples))
+        )
 
     all_cols = ['wandb_example_id', 'image', 'card', 'true_class', 'true_prob', 'pred_class', 'pred_prob'] + class_cols
     frame_dict = {

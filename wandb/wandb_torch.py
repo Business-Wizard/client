@@ -116,7 +116,7 @@ class TorchHistory(object):
                         data = parameter.data
                     else:
                         data = parameter
-                    self.log_tensor_stats(data.cpu(), "parameters/" + prefix + name)
+                    self.log_tensor_stats(data.cpu(), f'parameters/{prefix}{name}')
 
             log_track_params = log_track_init(log_freq)
             hook = module.register_forward_hook(
@@ -141,9 +141,9 @@ class TorchHistory(object):
         """
         # TODO Handle the case of duplicate names.
 
-        if isinstance(tensor, tuple) or isinstance(tensor, list):
-            while (isinstance(tensor, tuple) or isinstance(tensor, list)) and (
-                isinstance(tensor[0], tuple) or isinstance(tensor[0], list)
+        if isinstance(tensor, (tuple, list)):
+            while isinstance(tensor, (tuple, list)) and isinstance(
+                tensor[0], (tuple, list)
             ):
                 tensor = [item for sublist in tensor for item in sublist]
             tensor = torch.cat([t.reshape(-1) for t in tensor])
@@ -158,8 +158,7 @@ class TorchHistory(object):
 
         # recover history from run if using jupyter
         if history is None and self._jupyter_run:
-            jupyter_run = self._jupyter_run()
-            if jupyter_run:
+            if jupyter_run := self._jupyter_run():
                 history = jupyter_run.history
 
         if history is None or not history.compute:
@@ -226,8 +225,8 @@ class TorchHistory(object):
         tmax = flat.max().item()
         if sparse_zeros:
             # If we've got zeros to add in, make sure zero is in the hist range.
-            tmin = 0 if tmin > 0 else tmin
-            tmax = 0 if tmax < 0 else tmax
+            tmin = min(tmin, 0)
+            tmax = max(tmax, 0)
         # Anecdotally, this can somehow happen sometimes. Maybe a precision error
         # in min()/max() above. Swap here to prevent a runtime error.
         if tmin > tmax:
@@ -297,10 +296,7 @@ class TorchHistory(object):
 
     def _torch_hook_handle_is_valid(self, handle):
         d = handle.hooks_dict_ref()
-        if d is None:
-            return False
-        else:
-            return handle.id in d
+        return False if d is None else handle.id in d
 
 
 class TorchGraph(wandb.data_types.Graph):
@@ -558,9 +554,10 @@ class TorchGraph(wandb.data_types.Graph):
 
         node = wandb.Node()
         node.id = nid
-        node.child_parameters = 0
-        for parameter in module.parameters():
-            node.child_parameters += numpy.prod(parameter.size())
+        node.child_parameters = sum(
+            numpy.prod(parameter.size()) for parameter in module.parameters()
+        )
+
         node.class_name = type(module).__name__
 
         return node

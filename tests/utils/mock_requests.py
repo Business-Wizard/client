@@ -109,7 +109,7 @@ class RequestsMock(object):
         key = parts[0].split("/")[-1]
         if len(parts) > 1:
             # To make assertions easier, we remove the run from storage requests
-            key = key + "?" + parts[1].split("&run=")[0]
+            key = f'{key}?{parts[1].split("&run=")[0]}'
         self.ctx[key] = self.ctx.get(key, [])
         self.ctx[key].append(body)
 

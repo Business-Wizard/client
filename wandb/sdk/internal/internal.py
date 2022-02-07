@@ -65,8 +65,6 @@ def wandb_internal(settings, record_q, result_q):
     publish_interface = interface.BackendSender(record_q=record_q)
 
     stopped = threading.Event()
-    threads = []
-
     send_record_q = queue.Queue()
     record_sender_thread = SenderThread(
         settings=settings,
@@ -75,8 +73,7 @@ def wandb_internal(settings, record_q, result_q):
         stopped=stopped,
         interface=publish_interface,
     )
-    threads.append(record_sender_thread)
-
+    threads = [record_sender_thread]
     write_record_q = queue.Queue()
     record_writer_thread = WriterThread(
         settings=settings,
@@ -124,8 +121,7 @@ def wandb_internal(settings, record_q, result_q):
         thread.join()
 
     for thread in threads:
-        exc_info = thread.get_exception()
-        if exc_info:
+        if exc_info := thread.get_exception():
             logger.error("Thread {}:".format(thread.name), exc_info=exc_info)
             print("Thread {}:".format(thread.name), file=sys.stderr)
             traceback.print_exception(*exc_info)

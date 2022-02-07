@@ -254,10 +254,12 @@ class Api(object):
 
     @property
     def api_key(self):
-        auth = requests.utils.get_netrc_auth(self.api_url)
-        key = None
-        if auth:
-            key = auth[-1]
+        key = (
+            auth[-1]
+            if (auth := requests.utils.get_netrc_auth(self.api_url))
+            else None
+        )
+
         # Environment should take precedence
         env_key = self._environ.get(env.API_KEY)
         default_key = self.default_settings.get("api_key")
@@ -634,7 +636,7 @@ class Api(object):
             patch.seek(0)
         cwd = "."
         if self.git.enabled:
-            cwd = cwd + os.getcwd().replace(self.git.repo.working_dir, "")
+            cwd += os.getcwd().replace(self.git.repo.working_dir, "")
         return self.gql(
             query,
             variable_values={
@@ -680,7 +682,7 @@ class Api(object):
         response = self.gql(
             query, variable_values={"name": project, "run": run, "entity": entity}
         )
-        if response["model"] == None:
+        if response["model"] is None:
             raise CommError("Run {}/{}/{} not found".format(entity, project, run))
         run = response["model"]["bucket"]
         commit = run["commit"]
@@ -976,11 +978,9 @@ class Api(object):
         response = self.gql(mutation, variable_values=variable_values, **kwargs)
 
         run = response["upsertBucket"]["bucket"]
-        project = run.get("project")
-        if project:
+        if project := run.get("project"):
             self.set_setting("project", project["name"])
-            entity = project.get("entity")
-            if entity:
+            if entity := project.get("entity"):
                 self.set_setting("entity", entity["name"])
 
         return response["upsertBucket"]["bucket"], response["upsertBucket"]["inserted"]
@@ -1035,18 +1035,17 @@ class Api(object):
                 "run": run_id,
                 "entity": entity,
                 "description": description,
-                "files": [file for file in files],
+                "files": list(files),
             },
         )
 
-        run = query_result["model"]["bucket"]
-        if run:
-            result = {file["name"]: file for file in self._flatten_edges(run["files"])}
-            return run["id"], run["files"]["uploadHeaders"], result
-        else:
+
+        if not (run := query_result["model"]["bucket"]):
             raise CommError(
                 "Run does not exist {}/{}/{}.".format(entity, project, run_id)
             )
+        result = {file["name"]: file for file in self._flatten_edges(run["files"])}
+        return run["id"], run["files"]["uploadHeaders"], result
 
     @normalize_exceptions
     def download_urls(self, project, run=None, entity=None):
@@ -1264,7 +1263,8 @@ class Api(object):
             if not isinstance(e, requests.HTTPError):
                 return True
             if (
-                not (e.response.status_code >= 400 and e.response.status_code < 500)
+                e.response.status_code < 400
+                or e.response.status_code >= 500
                 or e.response.status_code == 429
             ):
                 return True
@@ -1393,7 +1393,8 @@ class Api(object):
             if not isinstance(e, requests.HTTPError):
                 return True
             if (
-                not (e.response.status_code >= 400 and e.response.status_code < 500)
+                e.response.status_code < 400
+                or e.response.status_code >= 500
                 or e.response.status_code == 429
             ):
                 return True
@@ -1743,7 +1744,7 @@ class Api(object):
                 "artifactCollectionNames": [artifact_collection_name],
                 "digest": digest,
                 "description": description,
-                "aliases": [alias for alias in aliases],
+                "aliases": list(aliases),
                 "labels": json.dumps(util.make_safe_for_json(labels))
                 if labels
                 else None,
@@ -1752,6 +1753,7 @@ class Api(object):
                 else None,
             },
         )
+
         av = response["createArtifact"]["artifact"]
         # TODO: make this a part of the graph
         av["version"] = "latest"
@@ -1782,8 +1784,7 @@ class Api(object):
         }
         """
         )
-        response = self.gql(mutation, variable_values={"artifactID": artifact_id})
-        return response
+        return self.gql(mutation, variable_values={"artifactID": artifact_id})
 
     def create_artifact_manifest(
         self,
@@ -1883,20 +1884,15 @@ class Api(object):
         """
         )
 
-        # TODO: we should use constants here from interface/artifacts.py
-        # but probably don't want the dependency. We're going to remove
-        # this setting in a future release, so I'm just hard-coding the strings.
-        storage_layout = "V2"
-        if env.get_use_v1_artifacts():
-            storage_layout = "V1"
-
+        storage_layout = "V1" if env.get_use_v1_artifacts() else "V2"
         response = self.gql(
             mutation,
             variable_values={
                 "storageLayout": storage_layout,
-                "artifactFiles": [af for af in artifact_files],
+                "artifactFiles": list(artifact_files),
             },
         )
+
 
         result = {}
         for edge in response["createArtifactFiles"]["files"]["edges"]:

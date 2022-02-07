@@ -113,7 +113,9 @@ def image_id_from_registry(image_name):
             "Received {} when attempting to get digest for {}".format(res, image_name)
         )
         return None
-    return "@".join([registry + "/" + repository, res.headers["Docker-Content-Digest"]])
+    return "@".join(
+        [f'{registry}/{repository}', res.headers["Docker-Content-Digest"]]
+    )
 
 
 def image_id(image_name):

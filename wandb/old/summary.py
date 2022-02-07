@@ -16,9 +16,7 @@ from wandb.apis.internal import Api
 from six import string_types
 
 
-# TODO: consolidate dynamic imports
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     from wandb.sdk import lib as wandb_lib
 else:
     from wandb.sdk_py27 import lib as wandb_lib
@@ -38,10 +36,7 @@ class SummarySubDict(object):
     """
 
     def __init__(self, root=None, path=()):
-        if root is None:
-            self._root = self
-        else:
-            self._root = root
+        self._root = self if root is None else root
         self._path = tuple(path)
         self._dict = {}
         self._json_dict = {}
@@ -60,10 +55,7 @@ class SummarySubDict(object):
 
     def __getattr__(self, k):
         k = k.strip()
-        if k.startswith("_"):
-            return object.__getattribute__(self, k)
-        else:
-            return self[k]
+        return object.__getattribute__(self, k) if k.startswith("_") else self[k]
 
     def _root_get(self, path, child_dict):
         """Load a value at a particular path from the root.
@@ -181,7 +173,7 @@ class SummarySubDict(object):
         if not key_vals:
             return
 
-        key_vals = dict((k.strip(), v) for k, v in six.iteritems(key_vals))
+        key_vals = {k.strip(): v for k, v in six.iteritems(key_vals)}
 
         if overwrite:
             write_items = list(six.iteritems(key_vals))
@@ -291,18 +283,17 @@ class Summary(SummarySubDict):
 
         h5 objects may be very large, so we won't have loaded them automatically.
         """
-        if isinstance(json_value, dict):
-            if json_value.get("_type") in H5_TYPES:
-                return self.read_h5(path, json_value)
-            elif json_value.get("_type") == 'data-frame':
-                wandb.termerror(
-                    'This data frame was saved via the wandb data API. Contact support@wandb.com for help.')
-                return None
-            # TODO: transform wandb objects and plots
-            else:
-                return SummarySubDict(self, path)
-        else:
+        if not isinstance(json_value, dict):
             return json_value
+        if json_value.get("_type") in H5_TYPES:
+            return self.read_h5(path, json_value)
+        elif json_value.get("_type") == 'data-frame':
+            wandb.termerror(
+                'This data frame was saved via the wandb data API. Contact support@wandb.com for help.')
+            return None
+        # TODO: transform wandb objects and plots
+        else:
+            return SummarySubDict(self, path)
 
     def _encode(self, value, path_from_root):
         """Normalize, compress, and encode sub-objects for backend storage.
@@ -320,10 +311,11 @@ class Summary(SummarySubDict):
         # encodes objects that aren't JSON serializable.
 
         if isinstance(value, dict):
-            json_value = {}
-            for key, value in six.iteritems(value):
-                json_value[key] = self._encode(value, path_from_root + (key,))
-            return json_value
+            json_value = {
+                key: self._encode(value, path_from_root + (key,))
+                for key, value in six.iteritems(value)
+            }
+
         else:
             path = ".".join(path_from_root)
             friendly_value, converted = util.json_friendly(
@@ -333,7 +325,8 @@ class Summary(SummarySubDict):
             if compressed:
                 self.write_h5(path_from_root, friendly_value)
 
-            return json_value
+
+        return json_value
 
 
 def download_h5(run_id, entity=None, project=None, out_dir=None):
@@ -405,15 +398,14 @@ class HTTPSummary(Summary):
             }
         }
         ''')
-        if commit:
-            if self._h5:
-                self._h5.close()
-                self._h5 = None
-            res = self._client.execute(mutation, variable_values={
-                'id': self._run.storage_id, 'summaryMetrics': util.json_dumps_safer(self._json_dict)})
-            assert res['upsertBucket']['bucket']['id']
-            entity, project, run = self._run.path
-            if os.path.exists(self._h5_path) and os.path.getmtime(self._h5_path) >= self._started:
-                upload_h5(self._h5_path, run, entity=entity, project=project)
-        else:
+        if not commit:
             return False
+        if self._h5:
+            self._h5.close()
+            self._h5 = None
+        res = self._client.execute(mutation, variable_values={
+            'id': self._run.storage_id, 'summaryMetrics': util.json_dumps_safer(self._json_dict)})
+        assert res['upsertBucket']['bucket']['id']
+        entity, project, run = self._run.path
+        if os.path.exists(self._h5_path) and os.path.getmtime(self._h5_path) >= self._started:
+            upload_h5(self._h5_path, run, entity=entity, project=project)

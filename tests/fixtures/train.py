@@ -14,7 +14,7 @@ print("Init called")
 
 #raise ValueError()
 #os.kill(os.getpid(), signal.SIGINT)
-for i in range(0, wandb.config.epochs):
+for i in range(wandb.config.epochs):
     loss = random.uniform(0, wandb.config.epochs - i)
     print("loss: %s" % loss)
     wandb.log({"loss": loss}, commit=False)

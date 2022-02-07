@@ -44,13 +44,8 @@ class WandbNotebookClient(NotebookClient):
             str -- Text output
         """
 
-        text = ""
         outputs = self.nb["cells"][cell_index]["outputs"]
-        for output in outputs:
-            if "text" in output:
-                text += output["text"]
-
-        return text
+        return "".join(output["text"] for output in outputs if "text" in output)
 
     def cell_output(self, cell_index):
         """Return cell text output
@@ -62,5 +57,4 @@ class WandbNotebookClient(NotebookClient):
             list -- List of outputs for the given cell
         """
 
-        outputs = self.nb["cells"][cell_index]["outputs"]
-        return outputs
+        return self.nb["cells"][cell_index]["outputs"]

@@ -41,24 +41,18 @@ def make_config(config_dict, obj=None):
 
 def make_run_data(data):
     rdata = wandb_internal_pb2.RunRecord()
-    run_id = data.get("run_id")
-    if run_id:
+    if run_id := data.get("run_id"):
         rdata.run_id = run_id
-    entity = data.get("entity")
-    if entity:
+    if entity := data.get("entity"):
         rdata.entity = entity
-    project = data.get("project")
-    if project:
+    if project := data.get("project"):
         rdata.project = project
-    run_group = data.get("group")
-    if run_group:
+    if run_group := data.get("group"):
         rdata.run_group = run_group
-    job_type = data.get("job_type")
-    if job_type:
+    if job_type := data.get("job_type"):
         rdata.job_type = job_type
     config_dict = data.get("config")
-    config_dict = data.get("config")
-    if config_dict:
+    if config_dict := data.get("config"):
         make_config(config_dict, obj=rdata.config)
     return rdata
 
@@ -98,8 +92,7 @@ class WandbInternalClient(object):
 
     def run_update(self, data):
         req = make_run_data(data)
-        run = self._stub.RunUpdate(req)
-        return run
+        return self._stub.RunUpdate(req)
 
     def log(self, data):
         req = make_log_data(data)

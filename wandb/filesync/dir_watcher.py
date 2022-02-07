@@ -132,9 +132,6 @@ class PolicyLive(FileEventHandler):
         time_elapsed = self.last_uploaded()
         if not self.synced or time_elapsed > self.min_wait_for_size(self.current_size):
             self.save_file()
-        # if the run is finished, or wandb.save is called explicitly save me
-        elif force and not self.synced:
-            self.save_file()
 
     def save_file(self):
         self._last_sync = os.path.getmtime(self.file_path)
@@ -203,8 +200,9 @@ class DirWatcher(object):
             os.path.join(self._dir, "*/.*"),
         ]
         # TODO: pipe in actual settings
-        for glb in self._settings.ignore_globs:
-            file_event_handler._ignore_patterns.append(os.path.join(self._dir, glb))
+        file_event_handler._ignore_patterns.extend(
+            os.path.join(self._dir, glb) for glb in self._settings.ignore_globs
+        )
 
         return file_event_handler
 
@@ -215,8 +213,7 @@ class DirWatcher(object):
         self._file_count += 1
         # We do the directory scan less often as it grows
         if self._file_count % 100 == 0:
-            emitter = self.emitter
-            if emitter:
+            if emitter := self.emitter:
                 emitter._timeout = int(self._file_count / 100) + 1
         save_name = os.path.relpath(event.src_path, self._dir)
         self._get_file_event_handler(event.src_path, save_name).on_modified()
@@ -296,13 +293,8 @@ class DirWatcher(object):
                         break
                 # Calling stop unschedules any inflight events so we handled them above
                 self._file_observer.stop()
-        # TODO: py2 TypeError: PyCObject_AsVoidPtr called with null pointer
-        except TypeError:
+        except (TypeError, SystemError):
             pass
-        # TODO: py3 SystemError: <built-in function stop> returned an error
-        except SystemError:
-            pass
-
         # Ensure we've at least noticed every file in the run directory. Sometimes
         # we miss things because asynchronously watching filesystems isn't reliable.
         logger.info("scan: %s", self._dir)

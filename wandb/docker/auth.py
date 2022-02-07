@@ -112,7 +112,7 @@ def resolve_repository_name(repo_name):
 
 def resolve_index_name(index_name):
     index_name = convert_to_hostname(index_name)
-    if index_name == "index." + INDEX_NAME:
+    if index_name == f'index.{INDEX_NAME}':
         index_name = INDEX_NAME
     return index_name
 
@@ -229,15 +229,13 @@ class AuthConfig(dict):
         res = {}
         if config_dict.get("auths"):
             log.debug("Found 'auths' section")
-            res.update(
-                {"auths": cls.parse_auth(config_dict.pop("auths"), raise_on_error=True)}
-            )
+            res["auths"] = cls.parse_auth(config_dict.pop("auths"), raise_on_error=True)
         if config_dict.get("credsStore"):
             log.debug("Found 'credsStore' section")
-            res.update({"credsStore": config_dict.pop("credsStore")})
+            res["credsStore"] = config_dict.pop("credsStore")
         if config_dict.get("credHelpers"):
             log.debug("Found 'credHelpers' section")
-            res.update({"credHelpers": config_dict.pop("credHelpers")})
+            res["credHelpers"] = config_dict.pop("credHelpers")
         if res:
             return cls(res, credstore_env)
 
@@ -391,8 +389,7 @@ def _load_legacy_config(config_file):
     try:
         data = []
         with open(config_file) as f:
-            for line in f.readlines():
-                data.append(line.strip().split(" = ")[1])
+            data.extend(line.strip().split(" = ")[1] for line in f.readlines())
             if len(data) < 2:
                 # Not enough data
                 raise InvalidConfigFile("Invalid or empty configuration file!")
@@ -410,7 +407,5 @@ def _load_legacy_config(config_file):
         }
     except Exception as e:
         log.debug(e)
-        pass
-
     log.debug("All parsing attempts failed - returning empty config")
     return {}

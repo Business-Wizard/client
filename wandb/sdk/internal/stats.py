@@ -26,20 +26,18 @@ def gpu_in_use_by_this_process(gpu_handle):
     our_processes = base_process.children(recursive=True)
     our_processes.append(base_process)
 
-    our_pids = set([process.pid for process in our_processes])
+    our_pids = {process.pid for process in our_processes}
 
-    compute_pids = set(
-        [
-            process.pid
-            for process in pynvml.nvmlDeviceGetComputeRunningProcesses(gpu_handle)
-        ]
-    )
-    graphics_pids = set(
-        [
-            process.pid
-            for process in pynvml.nvmlDeviceGetGraphicsRunningProcesses(gpu_handle)
-        ]
-    )
+    compute_pids = {
+        process.pid
+        for process in pynvml.nvmlDeviceGetComputeRunningProcesses(gpu_handle)
+    }
+
+    graphics_pids = {
+        process.pid
+        for process in pynvml.nvmlDeviceGetGraphicsRunningProcesses(gpu_handle)
+    }
+
 
     pids_using_device = compute_pids | graphics_pids
 
@@ -103,8 +101,8 @@ class SystemStats(object):
             self.samples += 1
             if self._shutdown or self.samples >= self.samples_to_average:
                 self.flush()
-                if self._shutdown:
-                    break
+            if self._shutdown:
+                break
             seconds = 0
             while seconds < self.sample_rate_seconds:
                 time.sleep(0.1)
@@ -136,7 +134,7 @@ class SystemStats(object):
 
     def stats(self):
         stats = {}
-        for i in range(0, self.gpu_count):
+        for i in range(self.gpu_count):
             handle = pynvml.nvmlDeviceGetHandleByIndex(i)
             try:
                 util = pynvml.nvmlDeviceGetUtilizationRates(handle)
