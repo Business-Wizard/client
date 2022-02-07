@@ -71,8 +71,7 @@ class _WandbInit(object):
 
         # Start with settings from wandb library singleton
         settings: Settings = self._wl._clone_settings()
-        settings_param = kwargs.pop("settings", None)
-        if settings_param:
+        if settings_param := kwargs.pop("settings", None):
             settings._apply_settings(settings_param)
 
         self._reporter = reporting.setup_reporter(
@@ -578,8 +577,6 @@ def init(
             assert logger
             if wi.settings.problem == "fatal":
                 raise
-            if wi.settings.problem == "warn":
-                pass
             # TODO(jhr): figure out how to make this RunDummy
             run = None
     except UsageError:

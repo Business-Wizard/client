@@ -19,7 +19,7 @@ class History(object):
     def __init__(self, run):
         self._run = run
         self._step = 0
-        self._data = dict()
+        self._data = {}
         self._callback = None
         self._torch = None
         self.compute = True
@@ -48,7 +48,7 @@ class History(object):
             self._data["_timestamp"] = int(self._data.get("_timestamp", time.time()))
             if self._callback:
                 self._callback(row=self._data, step=self._step)
-            self._data = dict()
+            self._data = {}
 
     @property
     def start_time(self):

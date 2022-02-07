@@ -249,7 +249,7 @@ def test_matplotlib_image_with_multiple_axes():
     for fig in utils.matplotlib_multiple_axes_figures():
         wandb.Image(fig)  # this should not error.
 
-    for fig in utils.matplotlib_multiple_axes_figures():
+    for _ in utils.matplotlib_multiple_axes_figures():
         wandb.Image(plt)  # this should not error.
 
 
@@ -261,7 +261,7 @@ def test_matplotlib_plotly_with_multiple_axes():
     for fig in utils.matplotlib_multiple_axes_figures():
         wandb.Plotly(fig)  # this should not error.
 
-    for fig in utils.matplotlib_multiple_axes_figures():
+    for _ in utils.matplotlib_multiple_axes_figures():
         wandb.Plotly(plt)  # this should not error.
 
 
@@ -393,8 +393,9 @@ def test_html_styles():
         html = wandb.Html("<html><head></head><body><h1>Hello</h1></body></html>")
         assert (
             html.html
-            == "<html><head>" + pre + "</head><body><h1>Hello</h1></body></html>"
+            == f'<html><head>{pre}</head><body><h1>Hello</h1></body></html>'
         )
+
         html = wandb.Html("<h1>Hello</h1>")
         assert html.html == pre + "<h1>Hello</h1>"
         html = wandb.Html("<h1>Hello</h1>", inject=False)

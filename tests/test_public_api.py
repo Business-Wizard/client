@@ -221,9 +221,7 @@ def test_projects(mock_server, api):
     projects = api.projects("test")
     # projects doesn't provide a length for now, so we iterate
     # them all to count
-    count = 0
-    for proj in projects:
-        count += 1
+    count = sum(1 for _ in projects)
     assert count == 2
 
 
@@ -281,10 +279,7 @@ def test_artifact_file(runner, mock_server, api):
     with runner.isolated_filesystem():
         art = api.artifact("entity/project/mnist:v0", type="dataset")
         path = art.file()
-        if platform.system() == "Windows":
-            part = "mnist-v0"
-        else:
-            part = "mnist:v0"
+        part = "mnist-v0" if platform.system() == "Windows" else "mnist:v0"
         assert path == os.path.join(".", "artifacts", part, "digits.h5")
 
 
@@ -292,10 +287,7 @@ def test_artifact_download(runner, mock_server, api):
     with runner.isolated_filesystem():
         art = api.artifact("entity/project/mnist:v0", type="dataset")
         path = art.download()
-        if platform.system() == "Windows":
-            part = "mnist-v0"
-        else:
-            part = "mnist:v0"
+        part = "mnist-v0" if platform.system() == "Windows" else "mnist:v0"
         assert path == os.path.join(".", "artifacts", part)
 
 

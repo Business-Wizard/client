@@ -68,7 +68,7 @@ def prompt_api_key(  # noqa: C901
     jupyter = settings._jupyter or False
     app_url = api.app_url
 
-    choices = [choice for choice in LOGIN_CHOICES]
+    choices = list(LOGIN_CHOICES)
     if anon_mode == "never":
         # Omit LOGIN_CHOICE_ANON as a choice if the env var is set to never
         choices.remove(LOGIN_CHOICE_ANON)
@@ -224,7 +224,6 @@ def api_key(settings=None):
         settings = wandb.setup().settings
     if settings.api_key:
         return settings.api_key
-    auth = requests.utils.get_netrc_auth(settings.base_url)
-    if auth:
+    if auth := requests.utils.get_netrc_auth(settings.base_url):
         return auth[-1]
     return None

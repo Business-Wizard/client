@@ -44,7 +44,7 @@ def _to_dict(params):
         params = {name: params[name].value for name in dir(params)}
     elif "__flags" in vars(params):
         # for older tensorflow flags (pre 1.4)
-        if not "__parsed" not in vars(params):
+        if "__parsed" in vars(params):
             params._parse_flags()
         params = vars(params)["__flags"]
     elif not hasattr(params, "__dict__"):

@@ -165,9 +165,8 @@ def wandb_pty(resize=True):
     except termios.error:
         pass
 
-    if resize:
-        if SIGWINCH_HANDLER is not None:
-            SIGWINCH_HANDLER.add_fd(master_fd)
+    if resize and SIGWINCH_HANDLER is not None:
+        SIGWINCH_HANDLER.add_fd(master_fd)
 
     return master_fd, slave_fd
 

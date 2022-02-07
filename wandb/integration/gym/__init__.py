@@ -12,8 +12,7 @@ def monitor():
 
     def close(self):
         vcr.ImageEncoder.orig_close(self)
-        m = re.match(r".+(video\.\d+).+", self.output_path)
-        if m:
+        if m := re.match(r".+(video\.\d+).+", self.output_path):
             key = m.group(1)
         else:
             key = "videos"

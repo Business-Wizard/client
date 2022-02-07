@@ -46,8 +46,7 @@ class NGramLanguageModeler(nn.Module):
         embeds = self.embeddings(inputs).view((1, -1))
         out = F.relu(self.linear1(embeds))
         out = self.linear2(out)
-        log_probs = F.log_softmax(out, dim=1)
-        return log_probs
+        return F.log_softmax(out, dim=1)
 
 
 has_cuda = torch.cuda.is_available()
@@ -60,7 +59,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.001)
 
 wandb.watch(model, log="all", log_freq=100)
 
-for epoch in range(100):
+for _ in range(100):
     total_loss = 0
     for context, target in trigrams:
 

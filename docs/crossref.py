@@ -55,9 +55,10 @@ class CrossrefProcessor(Struct):
             )
 
         if unresolved:
-            summary = []
-            for uid, refs in unresolved.items():
-                summary.append("  {}: {}".format(uid, ", ".join(refs)))
+            summary = [
+                "  {}: {}".format(uid, ", ".join(refs))
+                for uid, refs in unresolved.items()
+            ]
 
             logger.warning(
                 "%s cross-reference(s) could not be resolved:\n%s",
@@ -88,8 +89,7 @@ class CrossrefProcessor(Struct):
             elif not parens and ref.endswith("."):
                 ref = ref[:-1]
                 has_trailing_dot = True
-            href = resolver.resolve_ref(node, ref)
-            if href:
+            if href := resolver.resolve_ref(node, ref):
                 result = "[`{}`]({})".format(ref + parens + trailing, href)
             else:
                 uid = ".".join(x.name for x in reverse.path(node))

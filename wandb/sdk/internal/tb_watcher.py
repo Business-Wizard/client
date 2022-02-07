@@ -93,10 +93,7 @@ class TBWatcher(object):
         rootdir = util.to_forward_slash_path(
             os.path.dirname(os.path.commonprefix(dirs))
         )
-        if os.path.isfile(logdir):
-            filename = os.path.basename(logdir)
-        else:
-            filename = ""
+        filename = os.path.basename(logdir) if os.path.isfile(logdir) else ""
         # Tensorboard loads all tfevents files in a directory and prepends
         # their values with the path. Passing namespace to log allows us
         # to nest the values in wandb
@@ -322,7 +319,7 @@ class TBEventConsumer(object):
 class TBHistory(object):
     def __init__(self):
         self._step = 0
-        self._data = dict()
+        self._data = {}
         self._added = []
 
     def _flush(self):
@@ -334,7 +331,7 @@ class TBHistory(object):
 
     def add(self, d):
         self._flush()
-        self._data = dict()
+        self._data = {}
         self._data.update(d)
 
     def _row_update(self, d):

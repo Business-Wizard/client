@@ -36,13 +36,13 @@ class HandleManager(object):
 
         # keep track of config and summary from key/val updates
         # self._consolidated_config = dict()
-        self._consolidated_summary = dict()
-        self._sampled_history = dict()
+        self._consolidated_summary = {}
+        self._sampled_history = {}
 
     def handle(self, record):
         record_type = record.WhichOneof("record_type")
         assert record_type
-        handler_str = "handle_" + record_type
+        handler_str = f'handle_{record_type}'
         handler = getattr(self, handler_str, None)
         assert handler, "unknown handle: {}".format(handler_str)
         handler(record)
@@ -50,7 +50,7 @@ class HandleManager(object):
     def handle_request(self, record):
         request_type = record.request.WhichOneof("request_type")
         assert request_type
-        handler_str = "handle_request_" + request_type
+        handler_str = f'handle_request_{request_type}'
         handler = getattr(self, handler_str, None)
         logger.debug("handle_request: {}".format(request_type))
         assert handler, "unknown handle: {}".format(handler_str)

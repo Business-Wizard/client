@@ -9,9 +9,7 @@ import sys
 import wandb
 from wandb.util import mkdir_exists_ok
 
-# TODO: consolidate dynamic imports
-PY3 = sys.version_info.major == 3 and sys.version_info.minor >= 6
-if PY3:
+if PY3 := sys.version_info.major == 3 and sys.version_info.minor >= 6:
     from wandb.sdk.internal.handler import HandleManager
     from wandb.sdk.internal.sender import SendManager
     from wandb.sdk.interface.interface import BackendSender
@@ -125,8 +123,7 @@ def start_send_thread(sender_q, get_record):
     def start_send(send_manager):
         def target():
             while not stop_event.is_set():
-                payload = get_record(input_q=sender_q, timeout=0.1)
-                if payload:
+                if payload := get_record(input_q=sender_q, timeout=0.1):
                     send_manager.send(payload)
 
         t = threading.Thread(target=target)
@@ -144,8 +141,7 @@ def start_handle_thread(record_q, get_record):
     def start_handle(handle_manager):
         def target():
             while not stop_event.is_set():
-                payload = get_record(input_q=record_q, timeout=0.1)
-                if payload:
+                if payload := get_record(input_q=record_q, timeout=0.1):
                     handle_manager.handle(payload)
 
         t = threading.Thread(target=target)

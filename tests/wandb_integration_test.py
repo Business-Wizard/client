@@ -4,6 +4,7 @@ specific backend logic, or wandb_test.py for testing frontend logic.
 
 Be sure to use `test_settings` or an isolated directory
 """
+
 import wandb
 import pytest
 import json
@@ -18,15 +19,14 @@ import sys
 # Conditional imports of the reload function based on version
 if sys.version_info.major == 2:
     reloadFn = reload  # noqa: F821
+elif sys.version_info.minor >= 4:
+    import importlib
+
+    reloadFn = importlib.reload
 else:
-    if sys.version_info.minor >= 4:
-        import importlib
+    import imp
 
-        reloadFn = importlib.reload
-    else:
-        import imp
-
-        reloadFn = imp.reload
+    reloadFn = imp.reload
 
 
 # TODO: better debugging, if the backend process fails to start we currently
@@ -306,7 +306,7 @@ def test_dir_on_init_dir(live_mock_server, test_settings):
     )
     # And for the duplicate-run case
     _remove_dir_if_exists(default_path)
-    run = wandb.init(dir="./" + dir_name)
+    run = wandb.init(dir=f'./{dir_name}')
     run.join()
     assert not os.path.isdir(default_path), "Unexpected directory at {}".format(
         default_path

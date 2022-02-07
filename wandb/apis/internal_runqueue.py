@@ -576,7 +576,7 @@ class Api(object):
             patch.seek(0)
         cwd = "."
         if self.git.enabled:
-            cwd = cwd + os.getcwd().replace(self.git.repo.working_dir, "")
+            cwd += os.getcwd().replace(self.git.repo.working_dir, "")
         return self.gql(
             query,
             variable_values={
@@ -912,11 +912,9 @@ class Api(object):
         response = self.gql(mutation, variable_values=variable_values, **kwargs)
 
         run = response["upsertBucket"]["bucket"]
-        project = run.get("project")
-        if project:
+        if project := run.get("project"):
             self.set_setting("project", project["name"])
-            entity = project.get("entity")
-            if entity:
+            if entity := project.get("entity"):
                 self.set_setting("entity", entity["name"])
 
         return response["upsertBucket"]["bucket"]
@@ -971,18 +969,17 @@ class Api(object):
                 "run": run_id,
                 "entity": entity,
                 "description": description,
-                "files": [file for file in files],
+                "files": list(files),
             },
         )
 
-        run = query_result["model"]["bucket"]
-        if run:
-            result = {file["name"]: file for file in self._flatten_edges(run["files"])}
-            return run["id"], run["files"]["uploadHeaders"], result
-        else:
+
+        if not (run := query_result["model"]["bucket"]):
             raise CommError(
                 "Run does not exist {}/{}/{}.".format(entity, project, run_id)
             )
+        result = {file["name"]: file for file in self._flatten_edges(run["files"])}
+        return run["id"], run["files"]["uploadHeaders"], result
 
     @normalize_exceptions
     def download_urls(self, project, run=None, entity=None):
@@ -1164,7 +1161,7 @@ class Api(object):
         def no_retry_4xx(e):
             if not isinstance(e, requests.HTTPError):
                 return True
-            if not (e.response.status_code >= 400 and e.response.status_code < 500):
+            if e.response.status_code < 400 or e.response.status_code >= 500:
                 return True
             body = json.loads(e.response.content)
             raise UsageError(body["errors"][0]["message"])
@@ -1289,7 +1286,7 @@ class Api(object):
         def no_retry_4xx(e):
             if not isinstance(e, requests.HTTPError):
                 return True
-            if not (e.response.status_code >= 400 and e.response.status_code < 500):
+            if e.response.status_code < 400 or e.response.status_code >= 500:
                 return True
             body = json.loads(e.response.content)
             raise UsageError(body["errors"][0]["message"])

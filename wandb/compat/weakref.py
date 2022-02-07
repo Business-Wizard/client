@@ -93,8 +93,7 @@ class finalize(object):
 
     @atexit.setter
     def atexit(self, value):
-        info = self._registry.get(self)
-        if info:
+        if info := self._registry.get(self):
             info.atexit = bool(value)
 
     def __repr__(self):

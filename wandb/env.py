@@ -136,13 +136,12 @@ def get_run(default=None, env=None):
 def get_args(default=None, env=None):
     if env is None:
         env = os.environ
-    if env.get(ARGS):
-        try:
-            return json.loads(env.get(ARGS, "[]"))
-        except ValueError:
-            return None
-    else:
+    if not env.get(ARGS):
         return default or sys.argv[1:]
+    try:
+        return json.loads(env.get(ARGS, "[]"))
+    except ValueError:
+        return None
 
 
 def get_docker(default=None, env=None):
@@ -273,23 +272,20 @@ def get_crash_nosync_time(default=None, env=None):
 def get_magic(default=None, env=None):
     if env is None:
         env = os.environ
-    val = env.get(MAGIC, default)
-    return val
+    return env.get(MAGIC, default)
 
 
 def get_cache_dir(env=None):
     default_dir = os.path.expanduser(os.path.join("~", ".cache", "wandb"))
     if env is None:
         env = os.environ
-    val = env.get(CACHE_DIR, default_dir)
-    return val
+    return env.get(CACHE_DIR, default_dir)
 
 
 def get_use_v1_artifacts(env=None):
     if env is None:
         env = os.environ
-    val = env.get(USE_V1_ARTIFACTS, False)
-    return val
+    return env.get(USE_V1_ARTIFACTS, False)
 
 
 def get_agent_max_initial_failures(default=None, env=None):

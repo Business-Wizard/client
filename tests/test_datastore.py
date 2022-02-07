@@ -29,7 +29,7 @@ def check(
 ):
     """Check datastore size after multiple items written."""
     record_sizes = []
-    for _, chunk_size in enumerate(chunk_sizes):
+    for chunk_size in chunk_sizes:
         size = ds._write_data(b"\x01" * chunk_size)
         record_sizes.append(size)
     num = 7 + sum(chunk_sizes) + expected_records * 7 + expected_pad

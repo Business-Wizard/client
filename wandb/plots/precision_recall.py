@@ -89,13 +89,12 @@ def precision_recall(
         def pr_table(pr_curves):
             data = []
             count = 0
-            for i, class_name in enumerate(pr_curves.keys()):
+            for class_name in pr_curves.keys():
                 precision, recall = pr_curves[class_name]
                 for p, r in zip(precision, recall):
                     # if class_names are ints and labels are set
-                    if labels is not None and (
-                        isinstance(class_name, int)
-                        or isinstance(class_name, np.integer)
+                    if labels is not None and isinstance(
+                        class_name, (int, np.integer)
                     ):
                         class_name = labels[class_name]
                     # if class_names are ints and labels are not set

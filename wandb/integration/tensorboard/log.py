@@ -15,10 +15,9 @@ IGNORE_KINDS = []
 tensor_util = wandb.util.get_module("tensorboard.util.tensor_util")
 
 
-pb = wandb.util.get_module(
+if pb := wandb.util.get_module(
     "tensorboard.compat.proto.summary_pb2"
-) or wandb.util.get_module("tensorflow.summary")
-if pb:
+) or wandb.util.get_module("tensorflow.summary"):
     Summary = pb.Summary
 else:
     Summary = None
@@ -28,10 +27,7 @@ def make_ndarray(tensor):
     if tensor_util:
         res = tensor_util.make_ndarray(tensor)
         # Tensorboard can log generic objects and we don't want to save them
-        if res.dtype == "object":
-            return None
-        else:
-            return res
+        return None if res.dtype == "object" else res
     else:
         wandb.termwarn(
             "Can't convert tensor summary, upgrade tensorboard with `pip"
@@ -47,7 +43,7 @@ def namespaced_tag(tag, namespace=""):
         # This happens with tensorboardX
         return namespace
     else:
-        return namespace + "/" + tag
+        return f'{namespace}/{tag}'
 
 
 def history_image_key(key, namespace=""):
@@ -213,11 +209,7 @@ def log(tf_summary_str_or_pb, history=None, step=0, namespace="", **kwargs):
     # of the global log
     last_step = STEPS.get(namespace, {"step": 0})
 
-    # Commit our existing data if this namespace increased its step
-    commit = False
-    if last_step["step"] < step:
-        commit = True
-
+    commit = last_step["step"] < step
     log_dict = tf_summary_to_dict(tf_summary_str_or_pb, namespace)
     if log_dict is None:
         # not an event, just return

@@ -31,7 +31,7 @@ def patch(save=None, tensorboardX=None, pytorch=None):
         _patch_nontensorflow(
             writer=pt_writer, module=TENSORBOARD_PYTORCH_MODULE, save=save
         )
-    if not c_writer and not tb_writer and not tb_writer:
+    if not c_writer and not tb_writer:
         wandb.termerror("Unsupported tensorboard configuration")
 
 

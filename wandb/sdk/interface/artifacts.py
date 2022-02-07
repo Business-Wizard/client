@@ -82,10 +82,7 @@ class StorageLayout(object):
 class StoragePolicy(object):
     @classmethod
     def lookup_by_name(cls, name):
-        for sub in cls.__subclasses__():
-            if sub.name() == name:
-                return sub
-        return None
+        return next((sub for sub in cls.__subclasses__() if sub.name() == name), None)
 
     @classmethod
     def name(cls):

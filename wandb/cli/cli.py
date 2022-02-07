@@ -64,17 +64,16 @@ def cli_unsupported(argument):
 
 class ClickWandbException(ClickException):
     def format_message(self):
-        # log_file = util.get_log_file_path()
-        log_file = ""
         orig_type = "{}.{}".format(self.orig_type.__module__, self.orig_type.__name__)
         if issubclass(self.orig_type, Error):
             return click.style(str(self.message), fg="red")
-        else:
-            return "An Exception was raised, see %s for full traceback.\n" "%s: %s" % (
-                log_file,
-                orig_type,
-                self.message,
-            )
+        # log_file = util.get_log_file_path()
+        log_file = ""
+        return "An Exception was raised, see %s for full traceback.\n" "%s: %s" % (
+            log_file,
+            orig_type,
+            self.message,
+        )
 
 
 def display_error(func):
@@ -129,8 +128,7 @@ def prompt_for_project(ctx, entity):
                 "message": "Which project should we use?",
                 "choices": project_names + ["Create New"],
             }
-            result = whaaaaat.prompt([question])
-            if result:
+            if result := whaaaaat.prompt([question]):
                 project = result["project_name"]
             else:
                 project = "Create New"
@@ -267,9 +265,6 @@ def superagent(project=None, entity=None, agent_spec=None):
 )
 @click.option("--project", "-p", help="The project to use.")
 @click.option("--entity", "-e", help="The entity to scope the project to.")
-# TODO(jhr): Enable these with settings rework
-# @click.option("--setting", "-s", help="enable an arbitrary setting.", multiple=True)
-# @click.option('--show', is_flag=True, help="Show settings")
 @click.option("--reset", is_flag=True, help="Reset settings")
 @click.option(
     "--mode",
@@ -357,9 +352,7 @@ def init(ctx, project, entity, reset, mode):
             # TODO(jhr): disabling manual entry for cling
             # 'choices': team_names + ["Manual Entry"]
         }
-        result = whaaaaat.prompt([question])
-        # result can be empty on click
-        if result:
+        if result := whaaaaat.prompt([question]):
             entity = result["team_name"]
         else:
             entity = "Manual Entry"
@@ -505,8 +498,7 @@ def sync(
         )
         synced = []
         unsynced = []
-        for item in all_items:
-            (synced if item.synced else unsynced).append(item)
+        (synced if item.synced else unsynced).extend(iter(all_items))
         if sync_items:
             wandb.termlog("Number of runs to be synced: {}".format(len(sync_items)))
             if show and show < len(sync_items):
@@ -837,23 +829,21 @@ def docker_run(ctx, docker_run_args, help):
     """
     api = InternalApi()
     args = list(docker_run_args)
-    if len(args) > 0 and args[0] == "run":
+    if args and args[0] == "run":
         args.pop(0)
-    if help or len(args) == 0:
+    if help or not args:
         wandb.termlog("This commands adds wandb env variables to your docker run calls")
         subprocess.call(["docker", "run"] + args + ["--help"])
         exit()
     #  TODO: is this what we want?
-    if len([a for a in args if a.startswith("--runtime")]) == 0 and find_executable(
+    if not [a for a in args if a.startswith("--runtime")] and find_executable(
         "nvidia-docker"
     ):
         args = ["--runtime", "nvidia"] + args
-    #  TODO: image_from_docker_args uses heuristics to find the docker image arg, there are likely cases
-    #  where this won't work
-    image = util.image_from_docker_args(args)
-    resolved_image = None
-    if image:
+    if image := util.image_from_docker_args(args):
         resolved_image = wandb.docker.image_id(image)
+    else:
+        resolved_image = None
     if resolved_image:
         args = ["-e", "WANDB_DOCKER=%s" % resolved_image] + args
     else:
@@ -931,14 +921,14 @@ def docker(
     args = list(docker_run_args)
     image = docker_image or ""
     # remove run for users used to nvidia-docker
-    if len(args) > 0 and args[0] == "run":
+    if args and args[0] == "run":
         args.pop(0)
-    if image == "" and len(args) > 0:
+    if image == "" and args:
         image = args.pop(0)
     # If the user adds docker args without specifying an image (should be rare)
     if not util.docker_image_regex(image.split("@")[0]):
         if image:
-            args = args + [image]
+            args += [image]
         image = wandb.docker.default_image(gpu=nvidia)
         subprocess.call(["docker", "pull", image])
     _, repo_name, tag = wandb.docker.parse(image)
@@ -953,8 +943,9 @@ def docker(
         sys.stdout.write(resolved_image)
         exit(0)
 
-    existing = wandb.docker.shell(["ps", "-f", "ancestor=%s" % resolved_image, "-q"])
-    if existing:
+    if existing := wandb.docker.shell(
+        ["ps", "-f", "ancestor=%s" % resolved_image, "-q"]
+    ):
         if click.confirm(
             "Found running container with the same image, do you want to attach?"
         ):
@@ -970,15 +961,16 @@ def docker(
         "WANDB_DOCKER=%s" % resolved_image,
         "--ipc=host",
         "-v",
-        wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+        f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
         "--entrypoint",
         "/wandb-entrypoint.sh",
     ]
+
     if nvidia:
         command.extend(["--runtime", "nvidia"])
     if not no_dir:
         #  TODO: We should default to the working directory if defined
-        command.extend(["-v", cwd + ":" + dir, "-w", dir])
+        command.extend(["-v", f'{cwd}:{dir}', "-w", dir])
     if api.api_key:
         command.extend(["-e", "WANDB_API_KEY=%s" % api.api_key])
     else:
@@ -986,7 +978,7 @@ def docker(
             "Couldn't find WANDB_API_KEY, run `wandb login` to enable streaming metrics"
         )
     if jupyter:
-        command.extend(["-e", "WANDB_ENSURE_JUPYTER=1", "-p", port + ":8888"])
+        command.extend(["-e", "WANDB_ENSURE_JUPYTER=1", "-p", f'{port}:8888'])
         no_tty = True
         cmd = (
             "jupyter lab --no-browser --ip=0.0.0.0 --allow-root --NotebookApp.token= --notebook-dir %s"
@@ -1058,10 +1050,11 @@ def local(ctx, port, env, daemon, upgrade, edge):
         "-v",
         "wandb:/vol",
         "-p",
-        port + ":8080",
+        f'{port}:8080',
         "--name",
         "wandb-local",
     ] + env_vars
+
     host = "http://localhost:%s" % port
     api.set_setting("base_url", host, globally=True, persist=True)
     if daemon:
@@ -1164,7 +1157,10 @@ def put(path, name, description, type, alias):
         description=description,
         aliases=[{"artifactCollectionName": artifact_name, "alias": a} for a in alias],
     )
-    artifact_path = artifact_path.split(":")[0] + ":" + res.get("version", "latest")
+    artifact_path = f'{artifact_path.split(":")[0]}:' + res.get(
+        "version", "latest"
+    )
+
     # Re-create the artifact and actually upload any files needed
     run.log_artifact(artifact, aliases=alias)
     wandb.termlog(
@@ -1365,11 +1361,10 @@ Run `git clone %s` and restore from there or pass the --no-git flag."""
                     else:
                         break
 
-            if commit:
-                wandb.termlog("Falling back to upstream commit: {}".format(commit))
-                patch_path, _ = api.download_write_file(files[filename])
-            else:
+            if not commit:
                 raise ClickException(restore_message)
+            wandb.termlog("Falling back to upstream commit: {}".format(commit))
+            patch_path, _ = api.download_write_file(files[filename])
         else:
             if patch_content:
                 patch_path = os.path.join(wandb_dir(), "diff.patch")

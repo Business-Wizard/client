@@ -259,12 +259,11 @@ class BackendSender(object):
         # encodes objects that aren't JSON serializable.
 
         if isinstance(value, dict):
-            json_value = {}
-            for key, value in six.iteritems(value):
-                json_value[key] = self._summary_encode(
-                    value, path_from_root + "." + key
-                )
-            return json_value
+            json_value = {
+                key: self._summary_encode(value, f'{path_from_root}.{key}')
+                for key, value in six.iteritems(value)
+            }
+
         else:
             path = ".".join(path_from_root)
             friendly_value, converted = json_friendly(
@@ -273,12 +272,8 @@ class BackendSender(object):
             json_value, compressed = maybe_compress_summary(
                 friendly_value, get_h5_typename(value)
             )
-            if compressed:
-                # TODO(jhr): impleement me
-                pass
-                # self.write_h5(path_from_root, friendly_value)
 
-            return json_value
+        return json_value
 
     def _make_summary_from_dict(self, summary_dict):
         summary = wandb_internal_pb2.SummaryRecord()
@@ -598,8 +593,7 @@ class BackendSender(object):
     def communicate_poll_exit(self, timeout=None):
         poll_request = wandb_internal_pb2.PollExitRequest()
         rec = self._make_request(poll_exit=poll_request)
-        result = self._communicate(rec, timeout=timeout)
-        return result
+        return self._communicate(rec, timeout=timeout)
 
     def communicate_check_version(self, current_version=None):
         check_version = wandb_internal_pb2.CheckVersionRequest()
@@ -615,8 +609,7 @@ class BackendSender(object):
     def communicate_run_start(self):
         run_start = wandb_internal_pb2.RunStartRequest()
         rec = self._make_request(run_start=run_start)
-        result = self._communicate(rec)
-        return result
+        return self._communicate(rec)
 
     def communicate_exit(self, exit_code, timeout=None):
         exit_data = self._make_exit(exit_code)

@@ -48,9 +48,7 @@ wandb.log({'roc': wandb.plot.roc_curve(y_test, y_probas, nb.classes_)})
 wandb.log({'pr': wandb.plot.pr_curve(y_test, y_probas, nb.classes_)})
 
 # Confusion Matrix
-class_ind_map = {}
-for i, class_name in enumerate(nb.classes_):
-    class_ind_map[class_name] = i
+class_ind_map = {class_name: i for i, class_name in enumerate(nb.classes_)}
 y_pred_inds = [class_ind_map[class_name] for class_name in y_pred]
 y_true_inds = [class_ind_map[class_name] for class_name in y_test]
 

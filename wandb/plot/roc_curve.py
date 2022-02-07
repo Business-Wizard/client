@@ -47,7 +47,7 @@ def roc_curve(y_true=None, y_probas=None, labels=None, classes_to_plot=None):
             classes_to_plot = classes
 
         fpr_dict = dict()
-        tpr_dict = dict()
+        tpr_dict = {}
 
         indices_to_plot = np.in1d(classes, classes_to_plot)
 

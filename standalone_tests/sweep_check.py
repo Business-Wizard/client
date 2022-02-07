@@ -236,7 +236,6 @@ def main():
     exclude_list = args.exclude.split(',') if args.exclude else []
 
     for t in test_list:
-        POKE_LOCAL = False
         if t in exclude_list:
             continue
         print("Testing: {}".format(t))
@@ -245,8 +244,7 @@ def main():
             raise Exception("Unknown test: %s" % t)
         if args.dryrun:
             continue
-        if args.local and t == 'grid_hyper':
-            POKE_LOCAL = True
+        POKE_LOCAL = bool(args.local and t == 'grid_hyper')
         f(args)
 
 

@@ -38,7 +38,7 @@ def login(anonymous=None, key=None, relogin=None, host=None, force=None):
     """
     kwargs = dict(locals())
     configured = _login(**kwargs)
-    return True if configured else False
+    return bool(configured)
 
 
 class _WandbLogin(object):
@@ -55,8 +55,7 @@ class _WandbLogin(object):
 
         # built up login settings
         login_settings: Settings = wandb.Settings()
-        settings_param = kwargs.pop("_settings", None)
-        if settings_param:
+        if settings_param := kwargs.pop("_settings", None):
             login_settings._apply_settings(settings_param)
         _logger = wandb.setup()._get_logger()
         login_settings._apply_login(kwargs, _logger=_logger)
@@ -145,12 +144,7 @@ class _WandbLogin(object):
         self._key = key
 
     def propogate_login(self):
-        # TODO(jhr): figure out if this is really necessary
-        if self._backend:
-            # TODO: calling this twice is gross, this deserves a refactor
-            # Make sure our backend picks up the new creds
-            # _ = self._backend.interface.communicate_login(key, anonymous)
-            pass
+        pass
 
 
 def _login(
@@ -173,12 +167,10 @@ def _login(
 
     wlogin = _WandbLogin()
 
-    _backend = kwargs.pop("_backend", None)
-    if _backend:
+    if _backend := kwargs.pop("_backend", None):
         wlogin.set_backend(_backend)
 
-    _silent = kwargs.pop("_silent", None)
-    if _silent:
+    if _silent := kwargs.pop("_silent", None):
         wlogin.set_silent(_silent)
 
     # configure login object

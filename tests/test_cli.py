@@ -209,7 +209,7 @@ def test_login_host_trailing_slash_fix_invalid(runner, empty_netrc, local_netrc)
 
 
 def test_login_onprem_key_arg(runner, empty_netrc, local_netrc):
-    onprem_key = "test-" + DUMMY_API_KEY
+    onprem_key = f'test-{DUMMY_API_KEY}'
     with runner.isolated_filesystem():
         result = runner.invoke(cli.login, [onprem_key])
         print("Output: ", result.output)
@@ -222,7 +222,7 @@ def test_login_onprem_key_arg(runner, empty_netrc, local_netrc):
 
 
 def test_login_invalid_key_arg(runner, empty_netrc, local_netrc):
-    invalid_key = "test--" + DUMMY_API_KEY
+    invalid_key = f'test--{DUMMY_API_KEY}'
     with runner.isolated_filesystem():
         result = runner.invoke(cli.login, [invalid_key])
         assert "API key must be 40 characters long, yours was" in str(result)
@@ -378,7 +378,7 @@ def test_docker(runner, docker):
                 "WANDB_DOCKER=wandb/deepo@sha256:abc123",
                 "--ipc=host",
                 "-v",
-                wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+                f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
                 "--entrypoint",
                 "/wandb-entrypoint.sh",
                 "-v",
@@ -392,6 +392,7 @@ def test_docker(runner, docker):
                 "/bin/bash",
             ]
         )
+
         assert result.exit_code == 0
 
 
@@ -410,7 +411,7 @@ def test_docker_basic(runner, docker, git_repo):
             "WANDB_DOCKER=wandb/deepo@sha256:abc123",
             "--ipc=host",
             "-v",
-            wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+            f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
             "--entrypoint",
             "/wandb-entrypoint.sh",
             "-v",
@@ -424,6 +425,7 @@ def test_docker_basic(runner, docker, git_repo):
             "/bin/bash",
         ]
     )
+
     assert result.exit_code == 0
 
 
@@ -441,7 +443,7 @@ def test_docker_sha(runner, docker):
             "WANDB_DOCKER=test@sha256:abc123",
             "--ipc=host",
             "-v",
-            wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+            f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
             "--entrypoint",
             "/wandb-entrypoint.sh",
             "-v",
@@ -455,6 +457,7 @@ def test_docker_sha(runner, docker):
             "/bin/bash",
         ]
     )
+
     assert result.exit_code == 0
 
 
@@ -472,7 +475,7 @@ def test_docker_no_dir(runner, docker):
             "WANDB_DOCKER=wandb/deepo@sha256:abc123",
             "--ipc=host",
             "-v",
-            wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+            f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
             "--entrypoint",
             "/wandb-entrypoint.sh",
             "-e",
@@ -482,6 +485,7 @@ def test_docker_no_dir(runner, docker):
             "/bin/bash",
         ]
     )
+
     assert result.exit_code == 0
 
 
@@ -502,7 +506,7 @@ def test_docker_no_interactive_custom_command(runner, docker, git_repo):
             "WANDB_DOCKER=wandb/deepo@sha256:abc123",
             "--ipc=host",
             "-v",
-            wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+            f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
             "--entrypoint",
             "/wandb-entrypoint.sh",
             "-v",
@@ -517,6 +521,7 @@ def test_docker_no_interactive_custom_command(runner, docker, git_repo):
             "python foo.py",
         ]
     )
+
     assert result.exit_code == 0
 
 
@@ -536,7 +541,7 @@ def test_docker_jupyter(runner, docker):
                 "WANDB_DOCKER=wandb/deepo@sha256:abc123",
                 "--ipc=host",
                 "-v",
-                wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+                f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
                 "--entrypoint",
                 "/wandb-entrypoint.sh",
                 "-v",
@@ -552,12 +557,11 @@ def test_docker_jupyter(runner, docker):
                 "test",
                 "/bin/bash",
                 "-c",
-                (
-                    "jupyter lab --no-browser --ip=0.0.0.0 --allow-root "
-                    "--NotebookApp.token= --notebook-dir /app"
-                ),
+                "jupyter lab --no-browser --ip=0.0.0.0 --allow-root "
+                "--NotebookApp.token= --notebook-dir /app",
             ]
         )
+
         assert result.exit_code == 0
 
 
@@ -576,7 +580,7 @@ def test_docker_args(runner, docker):
                 "WANDB_DOCKER=wandb/deepo@sha256:abc123",
                 "--ipc=host",
                 "-v",
-                wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+                f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
                 "--entrypoint",
                 "/wandb-entrypoint.sh",
                 "-v",
@@ -593,6 +597,7 @@ def test_docker_args(runner, docker):
                 "/bin/bash",
             ]
         )
+
         assert result.exit_code == 0
 
 
@@ -716,7 +721,7 @@ def test_restore_no_remote(runner, mock_server, git_repo, docker, monkeypatch):
             "WANDB_DOCKER=wandb/deepo@sha256:abc123",
             "--ipc=host",
             "-v",
-            wandb.docker.entrypoint + ":/wandb-entrypoint.sh",
+            f'{wandb.docker.entrypoint}:/wandb-entrypoint.sh',
             "--entrypoint",
             "/wandb-entrypoint.sh",
             "-v",

@@ -73,17 +73,17 @@ class SendManager(object):
         self._exit_result = None
 
         self._api = internal_api.Api(default_settings=settings)
-        self._api_settings = dict()
+        self._api_settings = {}
 
         # TODO(jhr): do something better, why do we need to send full lines?
-        self._partial_output = dict()
+        self._partial_output = {}
 
         self._exit_code = 0
 
     def send(self, record):
         record_type = record.WhichOneof("record_type")
         assert record_type
-        handler_str = "send_" + record_type
+        handler_str = f'send_{record_type}'
         send_handler = getattr(self, handler_str, None)
         # Don't log output to reduce log noise
         if record_type != "output":
@@ -94,7 +94,7 @@ class SendManager(object):
     def send_request(self, record):
         request_type = record.request.WhichOneof("request_type")
         assert request_type
-        handler_str = "send_request_" + request_type
+        handler_str = f'send_request_{request_type}'
         send_handler = getattr(self, handler_str, None)
         logger.debug("send_request: {}".format(request_type))
         assert send_handler, "unknown handle: {}".format(handler_str)
@@ -107,7 +107,7 @@ class SendManager(object):
                     self._flatten(v)
                     dictionary.pop(k)
                     for k2, v2 in v.items():
-                        dictionary[k + "." + k2] = v2
+                        dictionary[f'{k}.{k2}'] = v2
 
     def send_request_check_version(self, record):
         assert record.control.req_resp
@@ -115,16 +115,12 @@ class SendManager(object):
         current_version = (
             record.request.check_version.current_version or wandb.__version__
         )
-        messages = update.check_available(current_version)
-        if messages:
-            upgrade_message = messages.get("upgrade_message")
-            if upgrade_message:
+        if messages := update.check_available(current_version):
+            if upgrade_message := messages.get("upgrade_message"):
                 result.response.check_version_response.upgrade_message = upgrade_message
-            yank_message = messages.get("yank_message")
-            if yank_message:
+            if yank_message := messages.get("yank_message"):
                 result.response.check_version_response.yank_message = yank_message
-            delete_message = messages.get("delete_message")
-            if delete_message:
+            if delete_message := messages.get("delete_message"):
                 result.response.check_version_response.delete_message = delete_message
         self._result_q.put(result)
 
@@ -312,8 +308,7 @@ class SendManager(object):
             if history:
                 history = json.loads(history[-1])
                 history_rt = history.get("_runtime", 0)
-            events = json.loads(resume_status["eventsTail"])
-            if events:
+            if events := json.loads(resume_status["eventsTail"]):
                 events = json.loads(events[-1])
                 events_rt = events.get("_runtime", 0)
             config = json.loads(resume_status["config"] or "{}")
@@ -424,34 +419,25 @@ class SendManager(object):
             self._run.summary.CopyFrom(
                 self._interface._make_summary_from_dict(self._resume_state["summary"])
             )
-        storage_id = server_run.get("id")
-        if storage_id:
+        if storage_id := server_run.get("id"):
             self._run.storage_id = storage_id
-        id = server_run.get("name")
-        if id:
+        if id := server_run.get("name"):
             self._api.set_current_run_id(id)
-        display_name = server_run.get("displayName")
-        if display_name:
+        if display_name := server_run.get("displayName"):
             self._run.display_name = display_name
-        project = server_run.get("project")
-        # TODO: remove self._api.set_settings, and make self._project a property?
-        if project:
-            project_name = project.get("name")
-            if project_name:
+        if project := server_run.get("project"):
+            if project_name := project.get("name"):
                 self._run.project = project_name
                 self._project = project_name
                 self._api_settings["project"] = project_name
                 self._api.set_setting("project", project_name)
-            entity = project.get("entity")
-            if entity:
-                entity_name = entity.get("name")
-                if entity_name:
+            if entity := project.get("entity"):
+                if entity_name := entity.get("name"):
                     self._run.entity = entity_name
                     self._entity = entity_name
                     self._api_settings["entity"] = entity_name
                     self._api.set_setting("entity", entity_name)
-        sweep_id = server_run.get("sweepName")
-        if sweep_id:
+        if sweep_id := server_run.get("sweepName"):
             self._run.sweep_id = sweep_id
 
     def _start_run_threads(self):
@@ -517,9 +503,7 @@ class SendManager(object):
         if not self._fs:
             return
         now = stats.timestamp.seconds
-        d = dict()
-        for item in stats.item:
-            d[item.key] = json.loads(item.value_json)
+        d = {item.key: json.loads(item.value_json) for item in stats.item}
         row = dict(system=d)
         self._flatten(row)
         row["_wandb"] = True

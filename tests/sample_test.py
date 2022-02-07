@@ -17,10 +17,7 @@ def doit(num, samples=None):
 
 
 def diff(l):
-    d = []
-    for n, v in enumerate(l[1:]):
-        d.append(v - l[n])
-    return d
+    return [v - l[n] for n, v in enumerate(l[1:])]
 
 
 def check(n, l, samples):
